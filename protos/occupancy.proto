@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package occupancy;
+
+// Occupancy Service (Server Streaming RPC)
+service OccupancyService {
+  // Subscribe to occupancy updates for a specific area
+  rpc StreamOccupancy (OccupancyRequest) returns (stream OccupancyUpdate);
+}
+
+// Request message
+message OccupancyRequest {
+  string area = 1;
+}
+
+// Streamed response message
+message OccupancyUpdate {
+  string area = 1;
+  bool occupied = 2;
+  int32 people_count = 3;
+  string timestamp = 4;
+  string status_message = 5;
+}

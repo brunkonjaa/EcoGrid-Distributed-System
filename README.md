@@ -30,6 +30,28 @@ The system consists of the following components:
 
 ---
 
+## Project Stages
+
+This repository is developed incrementally. Each stage is committed separately and this README is updated to reflect progress.
+
+### Completed Stages
+
+* Stage 1: Scenario and SDG selected (SDG 7: Affordable and Clean Energy)
+* Stage 2: Architecture defined (services, responsibilities, and interactions)
+* Stage 3: RPC mapping finalised (Unary, Server Streaming, Client Streaming, Bidirectional Streaming)
+* Stage 4: Proto definitions created for all services (see `protos/`)
+
+### Future Stages
+
+* Stage 5: Implement gRPC service logic for each service
+* Stage 6: Implement Registry registration and discovery (no hardcoded endpoints)
+* Stage 7: Implement client controller (discover, invoke, display outputs)
+* Stage 8: Add remote error handling, validation, and one advanced gRPC feature (metadata/deadlines/cancellation)
+* Stage 9: Collect evidence screenshots for RPCs, discovery, and error cases
+* Stage 10: Final report and video presentation deliverables
+
+---
+
 ## RPC Design (Final)
 
 Each service is mapped to a specific RPC type:
@@ -60,16 +82,11 @@ Each service is mapped to a specific RPC type:
 * RPC architecture fully defined and aligned with CA requirements
 * Streaming behaviour defined for Occupancy Service
 * Evidence (screenshots) collected for setup phase
-
----
-
-## Planned Features
-
-* `.proto` definitions for all services
-* Full gRPC service implementation
-* Service discovery via Registry (no hardcoded endpoints)
-* Error handling and message validation
-* CLI-based client interaction
+* Proto definitions exist for all services:
+  - `protos/temperature.proto`
+  - `protos/occupancy.proto`
+  - `protos/control.proto`
+  - `protos/registry.proto`
 
 ---
 
@@ -81,23 +98,11 @@ Run in each service and client folder:
 
 ```bash
 npm install
-````
-
-### 2. Start services
-
-Run each service in separate terminals:
-
-```bash
-npm start
 ```
 
-### 3. Run client
+### 2. Run services and client
 
-Run in the client folder:
-
-```bash
-npm start
-```
+Service implementations and runnable scripts will be added in later stages.
 
 ---
 

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package temperature;
+
+// Temperature Service (Unary RPC)
+service TemperatureService {
+  // Get temperature for a specific area
+  rpc GetCurrentTemperature (TemperatureRequest) returns (TemperatureResponse);
+}
+
+// Request message
+message TemperatureRequest {
+  string area = 1;
+}
+
+// Response message
+message TemperatureResponse {
+  string area = 1;
+  float temperature_value = 2;
+  string unit = 3;
+  string timestamp = 4;
+}

@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package control;
+
+// Control Service (Client Streaming RPC)
+service ControlService {
+  // Client streams multiple inputs; server returns one decision
+  rpc SubmitControlInputs (stream ControlInput) returns (ControlDecision);
+}
+
+enum ControlAction {
+  CONTROL_ACTION_UNSPECIFIED = 0;
+  HEATING_ON = 1;
+  HEATING_OFF = 2;
+  COOLING_ON = 3;
+  COOLING_OFF = 4;
+  NO_CHANGE = 5;
+}
+
+// Streamed request message
+message ControlInput {
+  string area = 1;
+  float temperature_value = 2;
+  bool occupied = 3;
+  string timestamp = 4;
+}
+
+// Unary response message (after stream ends)
+message ControlDecision {
+  string area = 1;
+  ControlAction action = 2;
+  string reason = 3;
+  string timestamp = 4;
+}
