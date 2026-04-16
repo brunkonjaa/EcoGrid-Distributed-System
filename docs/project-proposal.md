@@ -1,25 +1,25 @@
 EcoGrid Distributed System Project Proposal
 
-1. Introduction
-I have a strong interest in building and understanding how systems operate beyond their default configurations, particularly through experience with Android rooting and gaming console software/hardware modifications. This project reflects a similar mindset, where I am designing a system that shows and controls internal behaviour rather than relying on fixed functionality.
-By building EcoGrid as a distributed system with clearly defined communication between services, I am applying this interest in system-level understanding to a structured and practical environment.
+1.	Assigned UN Development Goal
+EcoGrid supports UN SDG 7: Affordable and Clean Energy by reducing wasted heating/cooling in unused building areas while maintaining comfort when areas are occupied.
+2.	Overview
+EcoGrid models a multi-room building where each area may have underfloor heating, ceiling cooling, a temperature sensor, and an occupancy sensor. The Controller Client collects sensor information and requests a control decision. All communication uses gRPC (Protocol Buffers). Registry Service is used so services can register and be discovered dynamically (no hardcoded endpoints). EcoGrid focuses on three behaviours: providing the latest sensor readings for an area, pushing occupancy updates in real time so the controller does not need to poll, and generating an energy action that reduces waste (for example, choosing no change when an area is empty). If an area is occupied and the temperature is below a comfort threshold, heating may be enabled. If occupied and above a threshold, cooling may be enabled. If unoccupied, heating or cooling should be disabled or unchanged depending on the current state.
+3.	Temperature Service
+It uses a single request/single response (unary). Client sends area name (string) and service returns one temperature reading for that area: temperature value (float), temperature unit (string, for example C), and timestamp (string). This fits unary RPC because the client needs one current reading at a time:
+•	Example request: area = Room101
+•	Example response: area= Room101, temperature value=19.8, unit=, timestamp=
+4.	Occupancy Service
+It uses server streaming. Client subscribes once by sending area name (string), and service keeps connection open and continuously sends occupancy updates. Each update includes area name (string), whether area is occupied (boolean), people count (integer), timestamp (string), and a short status message (string) explaining why the update was sent (for example a change or a periodic update). This fits streaming because occupancy can change at any time:
+•	Example request: area = Room101
+•	Example streamed responses:
+occupied=false, people count=0, timestamp=, then occupied=true, people count=2, timestamp=
 
-2. Idea and Purpose
-I decided to develop a distributed system called EcoGrid. It supports UN Sustainable Development Goal 7 (Affordable and Clean Energy). My aim is to reduce wasted energy in a building but without making space uncomfortable when people are actually using it.
-My point of view is multi-room building where each area has two klimate options: underfloor heating and ceiling cooling. Each area has temperature and occupancy sensor. System is supposed to avoid heating or cooling empty rooms and it responds quickly when a person enters the room.
-EcoGrid is implemented as small services that communicate using gRPC. Services publish themselves and discover each other through a registry so that nothing is hardcoded.
-
-3. System Architecture and Services
-The system consists of four servisces plus a controller client.
-
-3.1 Temperature Service (Unary RPC)
-Temperature Service responds to Controller with information regarding specific room or area. It replies with one result: room name, temperature, unit (like "C"), and the time the reading was taken. This is a unary call because it’s a straightforward question with a single answer.
-
-3.2 Occupancy Service (Server Streaming RPC)
-Occupancy Service lets the controller subscribe to a room or area and then keeps sending updates as things change. Each update includes the room name, if it’s occupied, then how many people are there and time of update. It is sent as short status message. Streaming fits here because occupancy can change at any time, and live updates are more useful than repeatedly checking.
-
-3.3 Control Service (Client Streaming RPC)
-Controller sends a short stream of recent readings for an area. When controller sends readings, the service replies once with a decision for that area: what to do (turn heating on/off, turn cooling on/off, or make no change), and a reason and timestamp. Client streaming fits because decision is better when it’s based on a few readings over time instead of a single moment.
-
-3.4 Registry Service (Bidirectional Streaming RPC)
-Registry Service is how everything finds everything else in my project. So for example services can connect to it to register themselves. On the other hand controller can ask registry what services are currently available and get back a full list with each service’s name, host, port, package, and timestamp. Bidirectional streaming fits here just perfectly because registration and discovery can happen at the same time, and also the registry can send updates whenever something changes.
+5.	Control Service
+It uses client streaming. Client sends a short stream of recent inputs for one area, where each input contains area name (string), temperature value (float), occupied state (boolean), and timestamp (string). When client has finished sending, service responds once with message/decision for that area: action (heating on/off, cooling on/off, or no change), reason (string), and timestamp (string). This fits client streaming because decision is more reliable when based on several readings, not just single moment:
+•	Example streamed requests:
+(area=Room101, temperature value=19.6, occupied=true, timestamp=) then (19.5)
+•	Example response: action=heating on, reason=occupied and below threshold, timestamp=
+6.	Registry Service
+It uses bidirectional streaming so registration and discovery can happen in real time on same connection. Services send messages containing their service name (string), host (string), port (integer), service package/type (string), and timestamp (string). Client can send discover request message, and registry replies with a discover response containing a list of currently available services (each with same host/port details) together with timestamp. This fits bidirectional streaming because both sides need to send messages independently whenever something changes.
+•	Example registration message: register service name=temperature-service, host=127.0.0.1, port=50051, package=temperature, timestamp=
+•	Example discovery: request discover services - response list of services with host/port

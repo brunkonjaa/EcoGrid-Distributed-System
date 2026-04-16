@@ -1,7 +1,5 @@
 # Screenshots Evidence
 
-This folder contains evidence of system development and functionality for the EcoGrid Distributed System CA.
-
 ## Structure
 
 - setup/
@@ -20,4 +18,3 @@ This folder contains evidence of system development and functionality for the Ec
 Each screenshot provides proof of:
 - System implementation
 - Correct execution of services
-- Compliance with CA requirements
