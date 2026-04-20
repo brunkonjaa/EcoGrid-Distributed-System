@@ -5,7 +5,7 @@ package temperature;
 // Temperature Service (Unary RPC)
 service TemperatureService {
   // Get temperature for a specific area
-  rpc GetCurrentTemperature (TemperatureRequest) returns (TemperatureResponse);
+  rpc GetTemperature (TemperatureRequest) returns (TemperatureResponse);
 }
 
 // Request message
