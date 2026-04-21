@@ -4,8 +4,8 @@ package occupancy;
 
 // Occupancy Service (Server Streaming RPC)
 service OccupancyService {
-  // Subscribe to occupancy updates for a specific area
-  rpc StreamOccupancy (OccupancyRequest) returns (stream OccupancyUpdate);
+  // Subscribe to occupancy updates for an area
+  rpc SubscribeOccupancy (OccupancyRequest) returns (stream OccupancyResponse);
 }
 
 // Request message
@@ -13,8 +13,8 @@ message OccupancyRequest {
   string area = 1;
 }
 
-// Streamed response message
-message OccupancyUpdate {
+// Response message (streamed)
+message OccupancyResponse {
   string area = 1;
   bool occupied = 2;
   int32 people_count = 3;
