@@ -4,22 +4,32 @@ package registry;
 
 // Registry Service (Bidirectional Streaming RPC)
 service RegistryService {
-  // Services register themselves and clients discover services
-  rpc RegisterAndDiscover (stream RegistryRequest) returns (stream RegistryResponse);
+  // Services register/heartbeat; clients can request discovery on the same stream
+  rpc ServiceRegistryStream (stream RegistryMessage) returns (stream RegistryMessage);
 }
 
-// Request message
-message RegistryRequest {
+enum RegistryMessageType {
+  REGISTRY_MESSAGE_TYPE_UNSPECIFIED = 0;
+  REGISTER = 1;
+  HEARTBEAT = 2;
+  DISCOVER_REQUEST = 3;
+  DISCOVER_RESPONSE = 4;
+  ACK = 5;
+  ERROR = 6;
+}
+
+message ServiceInfo {
   string service_name = 1;
   string host = 2;
   int32 port = 3;
-  string action = 4; // REGISTER or DISCOVER
+  string rpc_package = 4;
+  string timestamp = 5;
 }
 
-// Response message
-message RegistryResponse {
-  string service_name = 1;
-  string host = 2;
-  int32 port = 3;
-  string status = 4;
+message RegistryMessage {
+  RegistryMessageType type = 1;
+  string message = 2;
+  ServiceInfo service = 3;
+  repeated ServiceInfo services = 4;
+  string timestamp = 5;
 }
