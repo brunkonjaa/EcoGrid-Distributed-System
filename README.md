@@ -6,7 +6,7 @@ EcoGrid is a distributed system designed to optimise energy usage based on envir
 
 Aligned SDG:
 
-* SDG 7: Affordable and Clean Energy
+- SDG 7: Affordable and Clean Energy
 
 ---
 
@@ -14,85 +14,55 @@ Aligned SDG:
 
 The system consists of the following components:
 
-* Temperature Service — Provides temperature data for a given area
-* Occupancy Service — Streams real-time occupancy updates for an area
-* Control Service — Processes incoming data and determines energy actions
-* Registry Service — Handles service registration and discovery
-* Client — Acts as a controller to interact with all services
+- Temperature Service - Provides temperature data (Unary RPC)
+- Occupancy Service - Streams real-time occupancy updates (Server Streaming RPC)
+- Control Service - Processes incoming data and returns decisions (Client Streaming RPC)
+- Registry Service - Handles service registration and discovery (Bidirectional Streaming RPC)
+- Client - Discovers services through the registry before invoking them
 
 ---
 
 ## Communication
 
-* Protocol: gRPC
-* Data Format: Protocol Buffers (.proto)
-* Architecture: Microservices with RPC-based communication
+- Protocol: gRPC
+- Data Format: Protocol Buffers (.proto)
+- Architecture: Microservices with RPC-based communication
 
 ---
 
-## Project Stages
-
-This repository is developed incrementally. Each stage is committed separately and this README is updated to reflect progress.
-
-### Completed Stages
-
-* Stage 1: Scenario and SDG selected (SDG 7: Affordable and Clean Energy)
-* Stage 2: Architecture defined (services, responsibilities, and interactions)
-* Stage 3: RPC mapping finalised (Unary, Server Streaming, Client Streaming, Bidirectional Streaming)
-* Stage 4: Proto definitions created for all services (see `protos/`)
-
-### Future Stages
-
-* Stage 5: Implement gRPC service logic for each service
-* Stage 6: Implement Registry registration and discovery (no hardcoded endpoints)
-* Stage 7: Implement client controller (discover, invoke, display outputs)
-* Stage 8: Add remote error handling, validation, and one advanced gRPC feature (metadata/deadlines/cancellation)
-* Stage 9: Collect evidence screenshots for RPCs, discovery, and error cases
-* Stage 10: Final report and video presentation deliverables
-
----
-
-## RPC Design (Final)
+## RPC Design
 
 Each service is mapped to a specific RPC type:
 
-* Temperature Service → Unary RPC  
-  - Client requests current temperature for an area  
-  - Server returns a single response  
-
-* Occupancy Service → Server Streaming RPC  
-  - Client subscribes once  
-  - Server streams continuous occupancy updates (event-based + interval)  
-
-* Control Service → Client Streaming RPC  
-  - Client sends multiple data inputs (temperature + occupancy)  
-  - Server returns a single control decision  
-
-* Registry Service → Bidirectional Streaming RPC  
-  - Services register themselves dynamically  
-  - Client can discover available services in real-time  
+- Temperature - Unary
+- Occupancy - Server Streaming
+- Control - Client Streaming
+- Registry - Bidirectional Streaming
 
 ---
 
 ## Current State
 
-* Project structure created and organised into microservices
-* All services and client initialised with Node.js
-* gRPC dependencies installed across all components
-* RPC architecture fully defined and aligned with CA requirements
-* Streaming behaviour defined for Occupancy Service
-* Evidence (screenshots) collected for setup phase
-* Proto definitions exist for all services:
-  - `protos/temperature.proto`
-  - `protos/occupancy.proto`
-  - `protos/control.proto`
-  - `protos/registry.proto`
+- Project structure fully implemented
+- All services built and running independently
+- All 4 gRPC communication types implemented
+- Temperature, Occupancy, Control, and Registry services tested
+- Registry service supports registration, heartbeat, and discovery through bidirectional streaming
+- Dedicated registry client file is implemented
+- Temperature, Occupancy, and Control clients use registry-based discovery before calling services
+- Temperature, Occupancy, and Control services register themselves with the registry and send heartbeat messages
+- Proto files defined for all services:
+  - `temperature.proto`
+  - `occupancy.proto`
+  - `control.proto`
+  - `registry.proto`
+- Remaining work includes GUI integration, stronger error handling, advanced gRPC features, final report, and final video
 
 ---
 
 ## How to Run
 
-### 1. Install dependencies
+### Install dependencies
 
 Run in each service and client folder:
 
@@ -100,15 +70,49 @@ Run in each service and client folder:
 npm install
 ```
 
-### 2. Run services and client
+### Run services
 
-Service implementations and runnable scripts will be added in later stages.
+Start the registry first:
+
+```bash
+cd registry-service
+npm start
+```
+
+Then start each main service in a separate terminal:
+
+```bash
+cd services/temperature-service
+npm start
+```
+
+```bash
+cd services/occupancy-service
+npm start
+```
+
+```bash
+cd services/control-service
+npm start
+```
+
+### Run clients
+
+From the client folder:
+
+```bash
+cd client
+node registryClient.js discover temperature-service
+node temperatureClient.js
+node occupancyClient.js
+node controlClient.js
+```
 
 ---
 
 ## Evidence
 
-Screenshots of setup and implementation stages are stored in:
+Screenshots of system execution and outputs:
 
 ```
 /screenshots-evidence

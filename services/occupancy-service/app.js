@@ -1,7 +1,15 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const { createRegistrySession } = require('../../client/registryClient');
 
 const PROTO_PATH = __dirname + '/../../protos/occupancy.proto';
+const SERVICE_INFO = {
+    service_name: 'occupancy-service',
+    host: process.env.SERVICE_HOST || 'localhost',
+    port: 50052,
+    rpc_package: 'occupancy'
+};
+const HEARTBEAT_INTERVAL_MS = 10000;
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -12,6 +20,8 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const occupancyProto = grpc.loadPackageDefinition(packageDefinition).occupancy;
+let registrySession = null;
+let heartbeatTimer = null;
 
 // Server Streaming RPC
 function SubscribeOccupancy(call) {
@@ -40,6 +50,38 @@ function SubscribeOccupancy(call) {
     }, 2000);
 }
 
+async function registerWithRegistry() {
+    registrySession = createRegistrySession();
+
+    try {
+        const registerResponse = await registrySession.register(SERVICE_INFO);
+        console.log('Registry:', registerResponse.message);
+
+        heartbeatTimer = setInterval(async () => {
+            try {
+                const heartbeatResponse = await registrySession.sendHeartbeat(SERVICE_INFO);
+                console.log('Registry:', heartbeatResponse.message);
+            } catch (error) {
+                console.error('Registry heartbeat failed:', error.message);
+            }
+        }, HEARTBEAT_INTERVAL_MS);
+    } catch (error) {
+        console.error('Registry registration failed:', error.message);
+    }
+}
+
+function shutdown() {
+    if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
+
+    if (registrySession) {
+        registrySession.close();
+        registrySession = null;
+    }
+}
+
 function main() {
     const server = new grpc.Server();
 
@@ -53,8 +95,12 @@ function main() {
         () => {
             console.log("Occupancy Service running on port 50052");
             server.start();
+            registerWithRegistry();
         }
     );
 }
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 main();
