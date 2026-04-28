@@ -12,6 +12,8 @@
   - Unary, Server Streaming, Client Streaming, and Registry service execution
 - discovery/
   - Service registration, heartbeat, and discovery evidence
+- gui/
+  - Browser GUI evidence for service discovery and service invocation
 - errors/
   - Error handling, validation, and advanced gRPC evidence to be added later
 
@@ -28,4 +30,5 @@ Each screenshot provides proof of:
 - gRPC screenshots show the proto contracts.
 - Implementation screenshots show dependency installation and service code.
 - Testing screenshots show the main service and client outputs.
-- Discovery, error handling, advanced gRPC features, GUI usage, and final demo evidence are still to be expanded before final submission.
+- GUI screenshots show the browser controller discovering and calling the services.
+- Discovery, error handling, advanced gRPC features, and final demo evidence are still to be expanded before final submission.

@@ -19,6 +19,7 @@ The system consists of the following components:
 - Control Service - Processes incoming data and returns decisions (Client Streaming RPC)
 - Registry Service - Handles service registration and discovery (Bidirectional Streaming RPC)
 - Client - Discovers services through the registry before invoking them
+- GUI Client - Browser-based controller served by Node.js for demonstrating service discovery and service calls
 
 ---
 
@@ -51,12 +52,13 @@ Each service is mapped to a specific RPC type:
 - Dedicated registry client file is implemented
 - Temperature, Occupancy, and Control clients use registry-based discovery before calling services
 - Temperature, Occupancy, and Control services register themselves with the registry and send heartbeat messages
+- GUI client is implemented in the `client` folder and calls the real gRPC services through a small Node.js GUI server
 - Proto files defined for all services:
   - `temperature.proto`
   - `occupancy.proto`
   - `control.proto`
   - `registry.proto`
-- Remaining work includes GUI integration, stronger error handling, advanced gRPC features, final report, and final video
+- Remaining work includes stronger error handling, advanced gRPC features, final report, and final video
 
 ---
 
@@ -106,6 +108,21 @@ node registryClient.js discover temperature-service
 node temperatureClient.js
 node occupancyClient.js
 node controlClient.js
+```
+
+### Run GUI client
+
+Start Registry, Temperature, Occupancy, and Control first. Then run the GUI server from the client folder:
+
+```bash
+cd client
+npm run gui
+```
+
+Open the GUI in a browser:
+
+```text
+http://localhost:3000
 ```
 
 ---

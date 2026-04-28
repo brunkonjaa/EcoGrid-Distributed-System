@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoGrid Controller</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div>
+            <p class="eyebrow">NCI Higher Diploma in Software Development / Distributed Systems</p>
+            <h1>EcoGrid Controller</h1>
+            <p class="subtitle">Bruno Suric | SDG 7: Affordable and Clean Energy | gRPC Smart Environment Simulation</p>
+        </div>
+        <div class="header-status">
+            <span class="status-dot"></span>
+            Registry Discovery Enabled
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <section class="panel discovery-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Naming Service</p>
+                    <h2>Service Discovery</h2>
+                </div>
+                <button id="discoverAllBtn">Discover Services</button>
+            </div>
+            <div id="serviceGrid" class="service-grid">
+                <article class="service-tile muted">
+                    <strong>Temperature</strong>
+                    <span>Waiting for discovery</span>
+                </article>
+                <article class="service-tile muted">
+                    <strong>Occupancy</strong>
+                    <span>Waiting for discovery</span>
+                </article>
+                <article class="service-tile muted">
+                    <strong>Control</strong>
+                    <span>Waiting for discovery</span>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Unary RPC</p>
+                    <h2>Temperature Service</h2>
+                </div>
+                <span class="rpc-badge">GetTemperature</span>
+            </div>
+            <label for="temperatureArea">Area</label>
+            <input id="temperatureArea" type="text" value="Room A">
+            <button id="temperatureBtn">Get Temperature</button>
+            <pre id="temperatureOutput" class="output-box">No temperature request sent yet.</pre>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Server Streaming RPC</p>
+                    <h2>Occupancy Service</h2>
+                </div>
+                <span class="rpc-badge">SubscribeOccupancy</span>
+            </div>
+            <label for="occupancyArea">Area</label>
+            <input id="occupancyArea" type="text" value="Room A">
+            <button id="occupancyBtn">Run Occupancy Stream</button>
+            <pre id="occupancyOutput" class="output-box">No occupancy stream started yet.</pre>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Client Streaming RPC</p>
+                    <h2>Control Service</h2>
+                </div>
+                <span class="rpc-badge">SendSensorData</span>
+            </div>
+            <div class="form-grid">
+                <label>
+                    Area
+                    <input id="controlArea" type="text" value="Room A">
+                </label>
+                <label>
+                    Temperature
+                    <input id="controlTemperature" type="number" value="24" step="0.1">
+                </label>
+                <label>
+                    People Count
+                    <input id="controlPeople" type="number" value="0" min="0">
+                </label>
+                <label class="checkbox-row">
+                    <input id="controlOccupied" type="checkbox">
+                    Occupied
+                </label>
+            </div>
+            <button id="controlBtn">Send Control Stream</button>
+            <pre id="controlOutput" class="output-box">No control stream sent yet.</pre>
+        </section>
+
+        <section class="panel log-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Demo Evidence</p>
+                    <h2>Activity Log</h2>
+                </div>
+                <button id="clearLogBtn" class="secondary">Clear</button>
+            </div>
+            <div id="activityLog" class="activity-log"></div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
