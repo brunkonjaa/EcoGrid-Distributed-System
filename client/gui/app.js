@@ -19,6 +19,54 @@ function formatJson(value) {
     return JSON.stringify(value, null, 2);
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return 'Not supplied';
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function renderOutput(target, summaryHtml, technicalData) {
+    target.innerHTML = `
+        <div class="result-summary">
+            ${summaryHtml}
+        </div>
+        <details class="technical-details">
+            <summary>Technical response</summary>
+            <pre>${escapeHtml(formatJson(technicalData))}</pre>
+        </details>
+    `;
+}
+
+function renderError(target, message) {
+    target.innerHTML = `
+        <div class="result-summary error-summary">
+            <span class="result-label">Request failed</span>
+            <strong>${escapeHtml(message)}</strong>
+        </div>
+    `;
+}
+
+function resultRow(label, value) {
+    return `
+        <div class="result-row">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+        </div>
+    `;
+}
+
 function addLog(message, isError = false) {
     const entry = document.createElement('div');
     entry.className = `log-entry${isError ? ' error' : ''}`;
@@ -57,9 +105,21 @@ function setButtonLoading(button, loadingText) {
 function renderServices(services) {
     serviceGrid.innerHTML = '';
 
-    services.forEach((service) => {
+    const visibleServices = [
+        {
+            service_name: 'registry-service',
+            host: 'localhost',
+            port: 50054,
+            rpc_package: 'registry',
+            status: 'NAMING SERVICE'
+        },
+        ...services
+    ];
+
+    visibleServices.forEach((service) => {
         const tile = document.createElement('article');
-        const isDiscovered = service.status === 'DISCOVERED' || service.host;
+        const isRegistry = service.service_name === 'registry-service';
+        const isDiscovered = isRegistry || service.status === 'DISCOVERED' || service.host;
         tile.className = `service-tile ${isDiscovered ? 'discovered' : 'unavailable'}`;
 
         const endpoint = service.host && service.port
@@ -67,9 +127,10 @@ function renderServices(services) {
             : service.error || 'Not available';
 
         tile.innerHTML = `
-            <strong>${service.service_name}</strong>
-            <span>${endpoint}</span>
-            <span>${service.rpc_package || service.status || ''}</span>
+            <strong>${escapeHtml(service.service_name)}</strong>
+            <span>${escapeHtml(endpoint)}</span>
+            <span>Status: ${escapeHtml(service.status || 'UNKNOWN')}</span>
+            <span>Package: ${escapeHtml(service.rpc_package || 'Not discovered')}</span>
         `;
 
         serviceGrid.appendChild(tile);
@@ -82,7 +143,8 @@ async function discoverAllServices() {
     try {
         const data = await apiRequest('/api/registry');
         renderServices(data.services);
-        addLog('Registry discovery completed for Temperature, Occupancy, and Control.');
+        const discoveredCount = data.services.filter((service) => service.status === 'DISCOVERED').length;
+        addLog(`Registry discovery completed: ${discoveredCount} smart services discovered through the naming service.`);
     } catch (error) {
         addLog(`Discovery failed: ${error.message}`, true);
     } finally {
@@ -99,10 +161,18 @@ async function runTemperature() {
             method: 'POST',
             body: JSON.stringify({ area })
         });
-        outputs.temperature.textContent = formatJson(data);
-        addLog(`Temperature service invoked through ${data.endpoint}.`);
+        const reading = data.data;
+
+        renderOutput(outputs.temperature, `
+            <span class="result-label">Latest temperature reading</span>
+            <div class="primary-reading">${escapeHtml(reading.temperature_value)} ${escapeHtml(reading.unit)}</div>
+            ${resultRow('Area', reading.area)}
+            ${resultRow('Endpoint', data.endpoint)}
+            ${resultRow('Timestamp', formatDateTime(reading.timestamp))}
+        `, data);
+        addLog(`Temperature reading for ${reading.area} returned through ${data.endpoint}.`);
     } catch (error) {
-        outputs.temperature.textContent = error.message;
+        renderError(outputs.temperature, error.message);
         addLog(`Temperature request failed: ${error.message}`, true);
     } finally {
         stopLoading();
@@ -112,17 +182,44 @@ async function runTemperature() {
 async function runOccupancy() {
     const stopLoading = setButtonLoading(buttons.occupancy, 'Streaming...');
     const area = document.querySelector('#occupancyArea').value.trim() || 'Room A';
-    outputs.occupancy.textContent = 'Waiting for stream updates...';
+    outputs.occupancy.innerHTML = '<div class="waiting-state">Waiting for stream updates...</div>';
 
     try {
         const data = await apiRequest('/api/occupancy', {
             method: 'POST',
             body: JSON.stringify({ area })
         });
-        outputs.occupancy.textContent = formatJson(data);
-        addLog(`Occupancy stream completed through ${data.endpoint}.`);
+        const latestUpdate = data.updates[data.updates.length - 1] || {};
+        const visibleUpdates = data.updates.slice(0, 2);
+        const hiddenUpdates = data.updates.slice(2);
+        const renderUpdateRows = (updates, startIndex = 0) => updates.map((update, index) => `
+            <li>
+                <span>Update ${startIndex + index + 1}</span>
+                <strong>${update.occupied ? 'Occupied' : 'Empty'} | ${update.people_count} people</strong>
+                <small>${escapeHtml(formatDateTime(update.timestamp))}</small>
+            </li>
+        `).join('');
+        const hiddenUpdateDetails = hiddenUpdates.length > 0
+            ? `
+                <details class="update-details">
+                    <summary>Expand ${hiddenUpdates.length} more updates</summary>
+                    <ul class="stream-list hidden-updates">${renderUpdateRows(hiddenUpdates, visibleUpdates.length)}</ul>
+                </details>
+            `
+            : '';
+
+        renderOutput(outputs.occupancy, `
+            <span class="result-label">Occupancy stream completed</span>
+            <div class="primary-reading">${escapeHtml(data.updates.length)} updates</div>
+            ${resultRow('Area', latestUpdate.area || area)}
+            ${resultRow('Latest status', latestUpdate.occupied ? 'Occupied' : 'Empty')}
+            ${resultRow('Endpoint', data.endpoint)}
+            <ul class="stream-list">${renderUpdateRows(visibleUpdates)}</ul>
+            ${hiddenUpdateDetails}
+        `, data);
+        addLog(`Occupancy stream returned ${data.updates.length} updates through ${data.endpoint}.`);
     } catch (error) {
-        outputs.occupancy.textContent = error.message;
+        renderError(outputs.occupancy, error.message);
         addLog(`Occupancy stream failed: ${error.message}`, true);
     } finally {
         stopLoading();
@@ -162,10 +259,19 @@ async function runControl() {
             method: 'POST',
             body: JSON.stringify({ readings })
         });
-        outputs.control.textContent = formatJson(data);
-        addLog(`Control stream completed through ${data.endpoint}.`);
+        const decision = data.data;
+
+        renderOutput(outputs.control, `
+            <span class="result-label">Final control decision</span>
+            <div class="primary-reading">${escapeHtml(decision.action)}</div>
+            ${resultRow('Area', decision.area)}
+            ${resultRow('Reason', decision.reason)}
+            ${resultRow('Readings sent', data.sent.length)}
+            ${resultRow('Endpoint', data.endpoint)}
+        `, data);
+        addLog(`Control decision ${decision.action} returned through ${data.endpoint}.`);
     } catch (error) {
-        outputs.control.textContent = error.message;
+        renderError(outputs.control, error.message);
         addLog(`Control stream failed: ${error.message}`, true);
     } finally {
         stopLoading();

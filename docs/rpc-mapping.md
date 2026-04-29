@@ -56,6 +56,11 @@
   - `action` (`string`)
   - `reason` (`string`)
 - Behaviour: client streams multiple inputs, server returns a single decision when the stream ends
+- Current demo decision rules:
+  - if the room is unoccupied, action is `TURN_OFF_COOLING`
+  - if the room is occupied and temperature is below `18 C`, action is `TURN_ON_HEATING`
+  - if the room is occupied and temperature is from `18 C` to `24 C`, action is `MAINTAIN_CURRENT_STATE`
+  - if the room is occupied and temperature is above `24 C`, action is `TURN_ON_COOLING`
 - Runtime integration:
   - service runs on port `50053`
   - service registers as `control-service`

@@ -30,6 +30,11 @@
             </div>
             <div id="serviceGrid" class="service-grid">
                 <article class="service-tile muted">
+                    <strong>Registry</strong>
+                    <span>Naming service</span>
+                    <span>localhost:50054</span>
+                </article>
+                <article class="service-tile muted">
                     <strong>Temperature</strong>
                     <span>Waiting for discovery</span>
                 </article>
@@ -44,7 +49,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel service-panel">
             <div class="panel-heading">
                 <div>
                     <p class="section-kicker">Unary RPC</p>
@@ -55,10 +60,10 @@
             <label for="temperatureArea">Area</label>
             <input id="temperatureArea" type="text" value="Room A">
             <button id="temperatureBtn">Get Temperature</button>
-            <pre id="temperatureOutput" class="output-box">No temperature request sent yet.</pre>
+            <div id="temperatureOutput" class="output-box">No temperature request sent yet.</div>
         </section>
 
-        <section class="panel">
+        <section class="panel service-panel">
             <div class="panel-heading">
                 <div>
                     <p class="section-kicker">Server Streaming RPC</p>
@@ -69,10 +74,10 @@
             <label for="occupancyArea">Area</label>
             <input id="occupancyArea" type="text" value="Room A">
             <button id="occupancyBtn">Run Occupancy Stream</button>
-            <pre id="occupancyOutput" class="output-box">No occupancy stream started yet.</pre>
+            <div id="occupancyOutput" class="output-box">No occupancy stream started yet.</div>
         </section>
 
-        <section class="panel">
+        <section class="panel service-panel control-panel">
             <div class="panel-heading">
                 <div>
                     <p class="section-kicker">Client Streaming RPC</p>
@@ -99,7 +104,7 @@
                 </label>
             </div>
             <button id="controlBtn">Send Control Stream</button>
-            <pre id="controlOutput" class="output-box">No control stream sent yet.</pre>
+            <div id="controlOutput" class="output-box">No control stream sent yet.</div>
         </section>
 
         <section class="panel log-panel">

@@ -28,7 +28,7 @@ body {
     justify-content: space-between;
     gap: 24px;
     align-items: center;
-    padding: 28px 40px;
+    padding: 22px 34px;
     background: #0f5f63;
     color: #ffffff;
     border-bottom: 5px solid var(--accent);
@@ -88,16 +88,16 @@ h2 {
 
 .dashboard {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-    max-width: 1240px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    max-width: 1440px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 18px;
 }
 
 .panel {
     min-width: 0;
-    padding: 22px;
+    padding: 16px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--panel);
@@ -121,7 +121,7 @@ h2 {
     justify-content: space-between;
     gap: 16px;
     align-items: flex-start;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 
 .rpc-badge {
@@ -139,7 +139,7 @@ h2 {
 
 .service-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
 }
 
@@ -188,7 +188,7 @@ label {
 input {
     width: 100%;
     min-height: 42px;
-    margin: 6px 0 14px;
+    margin: 5px 0 10px;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 7px;
@@ -205,15 +205,15 @@ input:focus {
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
 }
 
 .checkbox-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 54px;
-    margin-top: 18px;
+    min-height: 48px;
+    margin-top: 14px;
 }
 
 .checkbox-row input {
@@ -251,9 +251,9 @@ button.secondary {
 }
 
 .output-box {
-    min-height: 150px;
-    margin: 16px 0 0;
-    padding: 14px;
+    min-height: 118px;
+    margin: 12px 0 0;
+    padding: 12px;
     overflow: auto;
     border: 1px solid #cfe0dc;
     border-radius: 8px;
@@ -261,7 +261,113 @@ button.secondary {
     color: #eaf8f3;
     font-size: 13px;
     line-height: 1.45;
+}
+
+.result-summary {
+    display: grid;
+    gap: 8px;
+}
+
+.result-label {
+    color: #a8e8d0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.primary-reading {
+    color: #ffffff;
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 7px 0;
+    border-top: 1px solid rgba(234, 248, 243, 0.14);
+}
+
+.result-row span {
+    color: #a7c6bf;
+}
+
+.result-row strong {
+    color: #ffffff;
+    text-align: right;
+}
+
+.stream-list {
+    display: grid;
+    gap: 6px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.stream-list li {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 4px 12px;
+    padding: 8px;
+    border: 1px solid rgba(234, 248, 243, 0.14);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.stream-list small {
+    grid-column: 2;
+    color: #a7c6bf;
+}
+
+.technical-details {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(234, 248, 243, 0.18);
+}
+
+.technical-details summary {
+    cursor: pointer;
+    color: #a8e8d0;
+    font-weight: 700;
+}
+
+.update-details {
+    margin-top: 2px;
+}
+
+.update-details summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: rgba(168, 232, 208, 0.12);
+    color: #a8e8d0;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.hidden-updates {
+    margin-top: 8px;
+}
+
+.technical-details pre {
+    margin: 10px 0 0;
+    overflow: auto;
+    color: #eaf8f3;
     white-space: pre-wrap;
+}
+
+.error-summary strong {
+    color: #ffd48a;
+}
+
+.waiting-state {
+    color: #a8e8d0;
+    font-weight: 700;
 }
 
 .activity-log {
@@ -301,5 +407,35 @@ button.secondary {
 
     h1 {
         font-size: 28px;
+    }
+
+    .result-row,
+    .stream-list li {
+        grid-template-columns: 1fr;
+    }
+
+    .result-row {
+        display: grid;
+        gap: 4px;
+    }
+
+    .result-row strong,
+    .stream-list small {
+        grid-column: auto;
+        text-align: left;
+    }
+}
+
+@media (min-width: 821px) and (max-width: 1120px) {
+    .dashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .control-panel {
+        grid-column: 1 / -1;
+    }
+
+    .service-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

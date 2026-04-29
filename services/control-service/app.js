@@ -32,10 +32,24 @@ function SendSensorData(call, callback) {
     });
 
     call.on('end', () => {
+        let action = "TURN_OFF_COOLING";
+        let reason = "Room empty";
+
+        if (latestData.occupied && latestData.temperature_value < 18) {
+            action = "TURN_ON_HEATING";
+            reason = "Room occupied and temperature is below comfort range";
+        } else if (latestData.occupied && latestData.temperature_value > 24) {
+            action = "TURN_ON_COOLING";
+            reason = "Room occupied and temperature is above comfort range";
+        } else if (latestData.occupied) {
+            action = "MAINTAIN_CURRENT_STATE";
+            reason = "Room occupied and temperature is within comfort range";
+        }
+
         const response = {
             area: latestData.area,
-            action: latestData.occupied ? "TURN_ON_COOLING" : "TURN_OFF_COOLING",
-            reason: latestData.occupied ? "Room occupied" : "Room empty"
+            action: action,
+            reason: reason
         };
 
         callback(null, response);

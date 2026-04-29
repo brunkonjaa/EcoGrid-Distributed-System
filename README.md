@@ -53,6 +53,7 @@ Each service is mapped to a specific RPC type:
 - Temperature, Occupancy, and Control clients use registry-based discovery before calling services
 - Temperature, Occupancy, and Control services register themselves with the registry and send heartbeat messages
 - GUI client is implemented in the `client` folder and calls the real gRPC services through a small Node.js GUI server
+- GUI client shows a compact dashboard with readable service summaries, technical response details, expandable Occupancy stream updates, and Control decisions for heating, comfort-range maintain state, and cooling
 - Proto files defined for all services:
   - `temperature.proto`
   - `occupancy.proto`
