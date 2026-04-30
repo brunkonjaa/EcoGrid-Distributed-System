@@ -20,6 +20,35 @@ const temperatureProto = loadProto('../protos/temperature.proto').temperature;
 const occupancyProto = loadProto('../protos/occupancy.proto').occupancy;
 const controlProto = loadProto('../protos/control.proto').control;
 
+const CONTROL_ACTIONS = [
+    'TURN_ON_HEATING',
+    'MAINTAIN_CURRENT_STATE',
+    'TURN_ON_COOLING',
+    'REDUCE_ENERGY_USAGE'
+];
+
+const AUTO_CYCLE_SCENARIOS = {
+    live: {
+        label: 'Live Demo Cycle'
+    },
+    heating: {
+        label: 'Heating Demo',
+        target_action: 'TURN_ON_HEATING'
+    },
+    comfort: {
+        label: 'Comfort Demo',
+        target_action: 'MAINTAIN_CURRENT_STATE'
+    },
+    cooling: {
+        label: 'Cooling Demo',
+        target_action: 'TURN_ON_COOLING'
+    },
+    empty: {
+        label: 'Empty Room Demo',
+        target_action: 'REDUCE_ENERGY_USAGE'
+    }
+};
+
 function loadProto(relativePath) {
     const packageDefinition = protoLoader.loadSync(path.join(__dirname, relativePath), PROTO_OPTIONS);
     return grpc.loadPackageDefinition(packageDefinition);
@@ -69,6 +98,134 @@ function createClient(ServiceType, serviceInfo) {
         `${serviceInfo.host}:${serviceInfo.port}`,
         grpc.credentials.createInsecure()
     );
+}
+
+function serviceError(error) {
+    error.statusCode = 502;
+    return error;
+}
+
+function randomTemperature(min, max) {
+    return Number((Math.random() * (max - min) + min).toFixed(1));
+}
+
+function randomChoice(values) {
+    return values[Math.floor(Math.random() * values.length)];
+}
+
+function createControlReadingForAction(action, area) {
+    if (action === 'TURN_ON_HEATING') {
+        return {
+            area,
+            temperature_value: randomTemperature(-25, 17.9),
+            occupied: true,
+            people_count: randomChoice([1, 2, 3, 4])
+        };
+    }
+
+    if (action === 'TURN_ON_COOLING') {
+        return {
+            area,
+            temperature_value: randomTemperature(24.1, 55),
+            occupied: true,
+            people_count: randomChoice([1, 2, 3, 4])
+        };
+    }
+
+    if (action === 'REDUCE_ENERGY_USAGE') {
+        return {
+            area,
+            temperature_value: randomTemperature(-25, 55),
+            occupied: false,
+            people_count: 0
+        };
+    }
+
+    return {
+        area,
+        temperature_value: randomTemperature(18, 24),
+        occupied: true,
+        people_count: randomChoice([1, 2, 3, 4])
+    };
+}
+
+async function callTemperature(area) {
+    const service = await discoverService('temperature-service');
+    const client = createClient(temperatureProto.TemperatureService, service);
+
+    return new Promise((resolve, reject) => {
+        client.GetTemperature({ area }, (error, data) => {
+            if (error) {
+                reject(serviceError(error));
+                return;
+            }
+
+            resolve({
+                endpoint: `${service.host}:${service.port}`,
+                data
+            });
+        });
+    });
+}
+
+async function callOccupancy(area) {
+    const service = await discoverService('occupancy-service');
+    const client = createClient(occupancyProto.OccupancyService, service);
+
+    return new Promise((resolve, reject) => {
+        const stream = client.SubscribeOccupancy({ area });
+        const updates = [];
+        let completed = false;
+
+        stream.on('data', (data) => {
+            updates.push(data);
+        });
+
+        stream.on('end', () => {
+            completed = true;
+            resolve({
+                endpoint: `${service.host}:${service.port}`,
+                updates
+            });
+        });
+
+        stream.on('error', (error) => {
+            if (!completed) {
+                reject(serviceError(error));
+            }
+        });
+    });
+}
+
+async function callControl(readings) {
+    const service = await discoverService('control-service');
+    const client = createClient(controlProto.ControlService, service);
+
+    return new Promise((resolve, reject) => {
+        const call = client.SendSensorData((error, data) => {
+            if (error) {
+                reject(serviceError(error));
+                return;
+            }
+
+            resolve({
+                endpoint: `${service.host}:${service.port}`,
+                sent: readings,
+                data
+            });
+        });
+
+        readings.forEach((reading) => {
+            call.write({
+                area: reading.area || 'Room A',
+                temperature_value: Number(reading.temperature_value),
+                occupied: Boolean(reading.occupied),
+                people_count: Number(reading.people_count)
+            });
+        });
+
+        call.end();
+    });
 }
 
 async function discoverKnownServices() {
@@ -137,52 +294,27 @@ async function handleRegistrySnapshot(response) {
 async function handleTemperature(request, response) {
     const body = await readRequestBody(request);
     const area = body.area || 'Room A';
-    const service = await discoverService('temperature-service');
-    const client = createClient(temperatureProto.TemperatureService, service);
+    const temperature = await callTemperature(area);
 
-    client.GetTemperature({ area }, (error, data) => {
-        if (error) {
-            sendError(response, 502, error.message);
-            return;
-        }
-
-        sendJson(response, 200, {
-            ok: true,
-            endpoint: `${service.host}:${service.port}`,
-            data
-        });
+    sendJson(response, 200, {
+        ok: true,
+        ...temperature
     });
 }
 
 async function handleOccupancy(request, response) {
     const body = await readRequestBody(request);
     const area = body.area || 'Room A';
-    const service = await discoverService('occupancy-service');
-    const client = createClient(occupancyProto.OccupancyService, service);
-    const stream = client.SubscribeOccupancy({ area });
-    const updates = [];
+    const occupancy = await callOccupancy(area);
 
-    stream.on('data', (data) => {
-        updates.push(data);
-    });
-
-    stream.on('end', () => {
-        sendJson(response, 200, {
-            ok: true,
-            endpoint: `${service.host}:${service.port}`,
-            updates
-        });
-    });
-
-    stream.on('error', (error) => {
-        sendError(response, 502, error.message);
+    sendJson(response, 200, {
+        ok: true,
+        ...occupancy
     });
 }
 
 async function handleControl(request, response) {
     const body = await readRequestBody(request);
-    const service = await discoverService('control-service');
-    const client = createClient(controlProto.ControlService, service);
     const readings = Array.isArray(body.readings) && body.readings.length > 0
         ? body.readings
         : [{
@@ -191,31 +323,62 @@ async function handleControl(request, response) {
             occupied: Boolean(body.occupied),
             people_count: Number(body.people_count || 0)
         }];
+    const control = await callControl(readings);
 
-    const call = client.SendSensorData((error, data) => {
-        if (error) {
-            sendError(response, 502, error.message);
-            return;
-        }
-
-        sendJson(response, 200, {
-            ok: true,
-            endpoint: `${service.host}:${service.port}`,
-            sent: readings,
-            data
-        });
+    sendJson(response, 200, {
+        ok: true,
+        ...control
     });
+}
 
-    readings.forEach((reading) => {
-        call.write({
-            area: reading.area || 'Room A',
-            temperature_value: Number(reading.temperature_value),
-            occupied: Boolean(reading.occupied),
-            people_count: Number(reading.people_count)
-        });
+async function handleAutoCycle(request, response) {
+    const body = await readRequestBody(request);
+    const area = body.area || 'Room A';
+    const scenarioKey = AUTO_CYCLE_SCENARIOS[body.scenario] ? body.scenario : 'live';
+    const scenario = AUTO_CYCLE_SCENARIOS[scenarioKey];
+    const requestedAction = CONTROL_ACTIONS.includes(body.target_action) ? body.target_action : null;
+    const temperature = await callTemperature(area);
+    const occupancy = await callOccupancy(area);
+    const latestOccupancy = occupancy.updates[occupancy.updates.length - 1] || {
+        area,
+        occupied: false,
+        people_count: 0
+    };
+    const combinedReading = {
+        area,
+        temperature_value: Number(temperature.data.temperature_value),
+        occupied: Boolean(latestOccupancy.occupied),
+        people_count: Number(latestOccupancy.people_count || 0)
+    };
+    const targetAction = scenarioKey === 'live'
+        ? requestedAction || randomChoice(CONTROL_ACTIONS)
+        : scenario.target_action;
+    const controlReading = createControlReadingForAction(targetAction, area);
+    const controlReadings = [
+        controlReading,
+        {
+            ...controlReading,
+            temperature_value: controlReading.temperature_value + 0.5
+        },
+        controlReading
+    ];
+    const control = await callControl(controlReadings);
+
+    sendJson(response, 200, {
+        ok: true,
+        area,
+        scenario: {
+            key: scenarioKey,
+            label: scenario.label,
+            target_action: targetAction
+        },
+        temperature,
+        occupancy,
+        latest_occupancy: latestOccupancy,
+        combined_reading: combinedReading,
+        control_reading: controlReading,
+        control
     });
-
-    call.end();
 }
 
 function serveStatic(request, response) {
@@ -277,9 +440,14 @@ async function handleApiRequest(request, response) {
             return;
         }
 
+        if (request.method === 'POST' && request.url === '/api/auto-cycle') {
+            await handleAutoCycle(request, response);
+            return;
+        }
+
         sendError(response, 404, 'Unknown API route');
     } catch (error) {
-        sendError(response, 500, error.message);
+        sendError(response, error.statusCode || 500, error.message);
     }
 }
 

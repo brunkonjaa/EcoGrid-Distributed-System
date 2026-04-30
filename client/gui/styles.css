@@ -116,6 +116,10 @@ h2 {
     grid-column: 1 / -1;
 }
 
+.auto-cycle-panel {
+    grid-column: 1 / -1;
+}
+
 .panel-heading {
     display: flex;
     justify-content: space-between;
@@ -185,7 +189,8 @@ label {
     font-weight: 700;
 }
 
-input {
+input,
+select {
     width: 100%;
     min-height: 42px;
     margin: 5px 0 10px;
@@ -197,7 +202,8 @@ input {
     font-size: 15px;
 }
 
-input:focus {
+input:focus,
+select:focus {
     outline: 2px solid rgba(46, 159, 111, 0.28);
     border-color: var(--accent);
 }
@@ -208,7 +214,8 @@ input:focus {
     gap: 10px;
 }
 
-.checkbox-row {
+.checkbox-row,
+.status-field {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -216,10 +223,30 @@ input:focus {
     margin-top: 14px;
 }
 
+.status-field {
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #f8fcfa;
+    color: var(--primary-dark);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.status-field strong {
+    color: var(--text);
+}
+
 .checkbox-row input {
     width: 18px;
     min-height: 18px;
     margin: 0;
+}
+
+.auto-cycle-form {
+    align-items: end;
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
 }
 
 button {

@@ -32,7 +32,7 @@ function SendSensorData(call, callback) {
     });
 
     call.on('end', () => {
-        let action = "TURN_OFF_COOLING";
+        let action = "REDUCE_ENERGY_USAGE";
         let reason = "Room empty";
 
         if (latestData.occupied && latestData.temperature_value < 18) {

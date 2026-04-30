@@ -6,14 +6,27 @@ const buttons = {
     temperature: document.querySelector('#temperatureBtn'),
     occupancy: document.querySelector('#occupancyBtn'),
     control: document.querySelector('#controlBtn'),
+    autoCycle: document.querySelector('#autoCycleBtn'),
     clearLog: document.querySelector('#clearLogBtn')
 };
 
 const outputs = {
     temperature: document.querySelector('#temperatureOutput'),
     occupancy: document.querySelector('#occupancyOutput'),
-    control: document.querySelector('#controlOutput')
+    control: document.querySelector('#controlOutput'),
+    autoCycle: document.querySelector('#autoCycleOutput')
 };
+
+const controlPeopleInput = document.querySelector('#controlPeople');
+const controlOccupancyStatus = document.querySelector('#controlOccupancyStatus');
+const roomSelects = document.querySelectorAll('.room-select');
+const autoCycleActions = [
+    'TURN_ON_HEATING',
+    'MAINTAIN_CURRENT_STATE',
+    'TURN_ON_COOLING',
+    'REDUCE_ENERGY_USAGE'
+];
+const liveCycleShownActions = new Set();
 
 function formatJson(value) {
     return JSON.stringify(value, null, 2);
@@ -67,6 +80,11 @@ function resultRow(label, value) {
     `;
 }
 
+function formatOccupants(count) {
+    const occupantCount = Number(count || 0);
+    return `${occupantCount} occupant${occupantCount === 1 ? '' : 's'}`;
+}
+
 function addLog(message, isError = false) {
     const entry = document.createElement('div');
     entry.className = `log-entry${isError ? ' error' : ''}`;
@@ -100,6 +118,64 @@ function setButtonLoading(button, loadingText) {
         button.textContent = originalText;
         button.disabled = false;
     };
+}
+
+function updateControlOccupancyStatus() {
+    const peopleCount = Number(controlPeopleInput.value || 0);
+    controlOccupancyStatus.textContent = peopleCount > 0 ? 'Occupied' : 'Empty';
+}
+
+function randomItem(values) {
+    return values[Math.floor(Math.random() * values.length)];
+}
+
+function getLiveCycleTargetAction() {
+    if (liveCycleShownActions.size === 0) {
+        return null;
+    }
+
+    const missingActions = autoCycleActions.filter((action) => !liveCycleShownActions.has(action));
+
+    if (missingActions.length === 0) {
+        liveCycleShownActions.clear();
+        return null;
+    }
+
+    return randomItem(missingActions);
+}
+
+function getLiveCycleProgressText() {
+    return `${liveCycleShownActions.size} of ${autoCycleActions.length} demo decisions shown`;
+}
+
+function getAreaValue(selector) {
+    return document.querySelector(selector).value.trim() || 'Room A';
+}
+
+function handleRoomSelection(event) {
+    if (event.target.value !== 'Edit_Name') {
+        return;
+    }
+
+    const customName = window.prompt('Enter room name:', 'Room C');
+
+    if (!customName || !customName.trim()) {
+        event.target.value = 'Room A';
+        return;
+    }
+
+    const cleanName = customName.trim();
+    roomSelects.forEach((select) => {
+        const existingOption = Array.from(select.options)
+            .find((option) => option.value === cleanName);
+
+        if (!existingOption) {
+            const option = new Option(cleanName, cleanName);
+            select.add(option, select.options[select.options.length - 1]);
+        }
+    });
+
+    event.target.value = cleanName;
 }
 
 function renderServices(services) {
@@ -154,7 +230,7 @@ async function discoverAllServices() {
 
 async function runTemperature() {
     const stopLoading = setButtonLoading(buttons.temperature, 'Calling...');
-    const area = document.querySelector('#temperatureArea').value.trim() || 'Room A';
+    const area = getAreaValue('#temperatureArea');
 
     try {
         const data = await apiRequest('/api/temperature', {
@@ -181,7 +257,7 @@ async function runTemperature() {
 
 async function runOccupancy() {
     const stopLoading = setButtonLoading(buttons.occupancy, 'Streaming...');
-    const area = document.querySelector('#occupancyArea').value.trim() || 'Room A';
+    const area = getAreaValue('#occupancyArea');
     outputs.occupancy.innerHTML = '<div class="waiting-state">Waiting for stream updates...</div>';
 
     try {
@@ -195,7 +271,7 @@ async function runOccupancy() {
         const renderUpdateRows = (updates, startIndex = 0) => updates.map((update, index) => `
             <li>
                 <span>Update ${startIndex + index + 1}</span>
-                <strong>${update.occupied ? 'Occupied' : 'Empty'} | ${update.people_count} people</strong>
+                <strong>${update.occupied ? 'Occupied' : 'Empty'} | ${formatOccupants(update.people_count)}</strong>
                 <small>${escapeHtml(formatDateTime(update.timestamp))}</small>
             </li>
         `).join('');
@@ -228,10 +304,10 @@ async function runOccupancy() {
 
 async function runControl() {
     const stopLoading = setButtonLoading(buttons.control, 'Sending...');
-    const area = document.querySelector('#controlArea').value.trim() || 'Room A';
+    const area = getAreaValue('#controlArea');
     const temperatureValue = Number(document.querySelector('#controlTemperature').value || 0);
-    const peopleCount = Number(document.querySelector('#controlPeople').value || 0);
-    const occupied = document.querySelector('#controlOccupied').checked;
+    const peopleCount = Number(controlPeopleInput.value || 0);
+    const occupied = peopleCount > 0;
 
     const readings = [
         {
@@ -278,12 +354,64 @@ async function runControl() {
     }
 }
 
+async function runAutoCycle() {
+    const stopLoading = setButtonLoading(buttons.autoCycle, 'Running...');
+    const area = getAreaValue('#autoCycleArea');
+    const scenario = document.querySelector('#autoCycleScenario').value;
+    const targetAction = scenario === 'live' ? getLiveCycleTargetAction() : null;
+    outputs.autoCycle.innerHTML = '<div class="waiting-state">Running automatic Temperature, Occupancy, and Control cycle...</div>';
+
+    try {
+        const data = await apiRequest('/api/auto-cycle', {
+            method: 'POST',
+            body: JSON.stringify({
+                area,
+                scenario,
+                target_action: targetAction
+            })
+        });
+        const combined = data.control_reading;
+        const decision = data.control.data;
+        let cycleProgress = '';
+
+        if (data.scenario.key === 'live') {
+            liveCycleShownActions.add(decision.action);
+            cycleProgress = resultRow('Live cycle progress', getLiveCycleProgressText());
+        }
+
+        renderOutput(outputs.autoCycle, `
+            <span class="result-label">Automatic cycle completed</span>
+            <div class="primary-reading">${escapeHtml(decision.action)}</div>
+            ${resultRow('Area', data.area)}
+            ${resultRow('Scenario', data.scenario.label)}
+            ${resultRow('Control reading sent', `${combined.temperature_value} C | ${combined.occupied ? 'occupied' : 'empty'} | ${formatOccupants(combined.people_count)}`)}
+            ${cycleProgress}
+            ${resultRow('Decision reason', decision.reason)}
+            ${resultRow('Temperature endpoint', data.temperature.endpoint)}
+            ${resultRow('Occupancy endpoint', data.occupancy.endpoint)}
+            ${resultRow('Control endpoint', data.control.endpoint)}
+        `, data);
+        addLog(`Auto Cycle ${data.scenario.label} completed for ${data.area}: ${decision.action}.`);
+    } catch (error) {
+        renderError(outputs.autoCycle, error.message);
+        addLog(`Auto Cycle failed: ${error.message}`, true);
+    } finally {
+        stopLoading();
+    }
+}
+
 buttons.discoverAll.addEventListener('click', discoverAllServices);
 buttons.temperature.addEventListener('click', runTemperature);
 buttons.occupancy.addEventListener('click', runOccupancy);
 buttons.control.addEventListener('click', runControl);
+buttons.autoCycle.addEventListener('click', runAutoCycle);
+roomSelects.forEach((select) => {
+    select.addEventListener('change', handleRoomSelection);
+});
+controlPeopleInput.addEventListener('input', updateControlOccupancyStatus);
 buttons.clearLog.addEventListener('click', () => {
     activityLog.innerHTML = '';
 });
 
+updateControlOccupancyStatus();
 addLog('EcoGrid GUI loaded. Start registry and services, then discover services.');

@@ -19,7 +19,7 @@ The system consists of the following components:
 - Control Service - Processes incoming data and returns decisions (Client Streaming RPC)
 - Registry Service - Handles service registration and discovery (Bidirectional Streaming RPC)
 - Client - Discovers services through the registry before invoking them
-- GUI Client - Browser-based controller served by Node.js for demonstrating service discovery and service calls
+- GUI Client - Browser-based controller served by Node.js for demonstrating service discovery, service calls, and an automatic control cycle
 
 ---
 
@@ -54,6 +54,8 @@ Each service is mapped to a specific RPC type:
 - Temperature, Occupancy, and Control services register themselves with the registry and send heartbeat messages
 - GUI client is implemented in the `client` folder and calls the real gRPC services through a small Node.js GUI server
 - GUI client shows a compact dashboard with readable service summaries, technical response details, expandable Occupancy stream updates, and Control decisions for heating, comfort-range maintain state, and cooling
+- GUI Auto Cycle calls Temperature, runs Occupancy, combines the latest readings, and sends them to Control automatically
+- Auto Cycle includes a Live Demo Cycle plus Heating, Comfort, Cooling, and Empty Room demo scenarios so the final demo can show all main Control Service decision paths clearly
 - Proto files defined for all services:
   - `temperature.proto`
   - `occupancy.proto`

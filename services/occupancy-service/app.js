@@ -31,11 +31,12 @@ function SubscribeOccupancy(call) {
 
     const interval = setInterval(() => {
         count++;
+        const occupied = count % 2 === 0;
 
         const response = {
             area: area,
-            occupied: count % 2 === 0,
-            people_count: Math.floor(Math.random() * 10),
+            occupied: occupied,
+            people_count: occupied ? Math.floor(Math.random() * 10) + 1 : 0,
             timestamp: new Date().toISOString(),
             status_message: "Live update"
         };

@@ -57,7 +57,7 @@
   - `reason` (`string`)
 - Behaviour: client streams multiple inputs, server returns a single decision when the stream ends
 - Current demo decision rules:
-  - if the room is unoccupied, action is `TURN_OFF_COOLING`
+  - if the room is unoccupied, action is `REDUCE_ENERGY_USAGE`
   - if the room is occupied and temperature is below `18 C`, action is `TURN_ON_HEATING`
   - if the room is occupied and temperature is from `18 C` to `24 C`, action is `MAINTAIN_CURRENT_STATE`
   - if the room is occupied and temperature is above `24 C`, action is `TURN_ON_COOLING`
@@ -65,6 +65,26 @@
   - service runs on port `50053`
   - service registers as `control-service`
   - client discovers `control-service` through the registry before calling it
+
+---
+
+## GUI Auto Cycle Flow
+**Combined distributed workflow**
+- GUI/API route: `POST /api/auto-cycle`
+- Behaviour:
+  - discovers and calls `temperature-service`
+  - discovers and runs the `occupancy-service` stream
+  - combines the temperature response with the latest occupancy update
+  - discovers and sends the combined readings to `control-service`
+  - returns the final control decision to the GUI
+- Scenario modes:
+  - `Live Demo Cycle` chooses changing demo control readings from `-25 C` to `55 C`; after the first random result, later live runs target decisions not yet shown so all four outcomes appear quickly
+  - `Heating Demo` sends an occupied low-temperature reading to demonstrate `TURN_ON_HEATING`
+  - `Comfort Demo` sends an occupied comfort-range reading to demonstrate `MAINTAIN_CURRENT_STATE`
+  - `Cooling Demo` sends an occupied high-temperature reading to demonstrate `TURN_ON_COOLING`
+  - `Empty Room Demo` sends an unoccupied reading to demonstrate `REDUCE_ENERGY_USAGE`
+- Purpose: demonstrates the smart environment acting automatically rather than only through separate manual service calls
+- Evidence: captured manually from the GUI after the Auto Cycle button completes
 
 ---
 

@@ -13,7 +13,7 @@
 - discovery/
   - Service registration, heartbeat, and discovery evidence
 - gui/
-  - Browser GUI evidence for service discovery and service invocation
+  - Browser GUI evidence for service discovery, service invocation, and Auto Cycle
 - errors/
   - Error handling, validation, and advanced gRPC evidence to be added later
 
@@ -31,6 +31,7 @@ Each screenshot provides proof of:
 - Implementation screenshots show dependency installation and service code.
 - Testing screenshots show the main service and client outputs.
 - GUI screenshots show the browser controller discovering and calling the services.
+- Auto Cycle screenshots should show the manual browser evidence for the automatic Temperature, Occupancy, and Control workflow.
 - Current GUI evidence includes:
   - `33_gui_discovery.png` - first GUI discovery evidence
   - `34_gui_services.png` - first GUI service invocation evidence
@@ -40,4 +41,10 @@ Each screenshot provides proof of:
   - `38_gui_control_heating.png` - Control Service heating decision below the comfort range
   - `39_gui_occupancy_expanded_activity_log.png` - expanded Occupancy stream updates and Activity Log
   - `40_gui_control_cooling.png` - Control Service cooling decision above the comfort range
+  - `41_gui_auto_cycle_heating_demo.png` - Auto Cycle Heating Demo returning `TURN_ON_HEATING`
+  - `42_gui_auto_cycle_comfort_demo.png` - Auto Cycle Comfort Demo returning `MAINTAIN_CURRENT_STATE`
+  - `43_gui_auto_cycle_cooling_demo.png` - Auto Cycle Cooling Demo returning `TURN_ON_COOLING`
+  - `44_gui_empty_room_demo.png` - Auto Cycle Empty Room Demo returning `REDUCE_ENERGY_USAGE`
+  - `45_gui_activity_log.png` - Activity Log showing discovery and Auto Cycle demo results
+  - `46_gui_room_selection.png` - room selection dropdown with predefined rooms and `Edit_Name`
 - Discovery, error handling, advanced gRPC features, and final demo evidence are still to be expanded before final submission.

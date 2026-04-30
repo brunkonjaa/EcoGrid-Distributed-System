@@ -58,7 +58,14 @@
                 <span class="rpc-badge">GetTemperature</span>
             </div>
             <label for="temperatureArea">Area</label>
-            <input id="temperatureArea" type="text" value="Room A">
+            <select id="temperatureArea" class="room-select">
+                <option value="Room A">Room A</option>
+                <option value="Room B">Room B</option>
+                <option value="Lab 1">Lab 1</option>
+                <option value="Lecture Hall">Lecture Hall</option>
+                <option value="Server Room">Server Room</option>
+                <option value="Edit_Name">Edit_Name</option>
+            </select>
             <button id="temperatureBtn">Get Temperature</button>
             <div id="temperatureOutput" class="output-box">No temperature request sent yet.</div>
         </section>
@@ -72,7 +79,14 @@
                 <span class="rpc-badge">SubscribeOccupancy</span>
             </div>
             <label for="occupancyArea">Area</label>
-            <input id="occupancyArea" type="text" value="Room A">
+            <select id="occupancyArea" class="room-select">
+                <option value="Room A">Room A</option>
+                <option value="Room B">Room B</option>
+                <option value="Lab 1">Lab 1</option>
+                <option value="Lecture Hall">Lecture Hall</option>
+                <option value="Server Room">Server Room</option>
+                <option value="Edit_Name">Edit_Name</option>
+            </select>
             <button id="occupancyBtn">Run Occupancy Stream</button>
             <div id="occupancyOutput" class="output-box">No occupancy stream started yet.</div>
         </section>
@@ -88,7 +102,14 @@
             <div class="form-grid">
                 <label>
                     Area
-                    <input id="controlArea" type="text" value="Room A">
+                    <select id="controlArea" class="room-select">
+                        <option value="Room A">Room A</option>
+                        <option value="Room B">Room B</option>
+                        <option value="Lab 1">Lab 1</option>
+                        <option value="Lecture Hall">Lecture Hall</option>
+                        <option value="Server Room">Server Room</option>
+                        <option value="Edit_Name">Edit_Name</option>
+                    </select>
                 </label>
                 <label>
                     Temperature
@@ -98,13 +119,48 @@
                     People Count
                     <input id="controlPeople" type="number" value="0" min="0">
                 </label>
-                <label class="checkbox-row">
-                    <input id="controlOccupied" type="checkbox">
-                    Occupied
-                </label>
+                <div class="status-field">
+                    <span>Occupancy Status</span>
+                    <strong id="controlOccupancyStatus">Empty</strong>
+                </div>
             </div>
             <button id="controlBtn">Send Control Stream</button>
             <div id="controlOutput" class="output-box">No control stream sent yet.</div>
+        </section>
+
+        <section class="panel auto-cycle-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Automated Controller</p>
+                    <h2>Auto Cycle</h2>
+                </div>
+                <span class="rpc-badge">Temperature + Occupancy + Control</span>
+            </div>
+            <div class="form-grid auto-cycle-form">
+                <label>
+                    Area
+                    <select id="autoCycleArea" class="room-select">
+                        <option value="Room A">Room A</option>
+                        <option value="Room B">Room B</option>
+                        <option value="Lab 1">Lab 1</option>
+                        <option value="Lecture Hall">Lecture Hall</option>
+                        <option value="Server Room">Server Room</option>
+                        <option value="Edit_Name">Edit_Name</option>
+                    </select>
+                </label>
+                <label>
+                    Scenario
+                    <select id="autoCycleScenario">
+                        <option value="live">Live Demo Cycle</option>
+                        <option value="heating">Heating Demo</option>
+                        <option value="comfort">Comfort Demo</option>
+                        <option value="cooling">Cooling Demo</option>
+                        <option value="empty">Empty Room Demo</option>
+                    </select>
+                </label>
+                <button id="autoCycleBtn">Run Auto Cycle</button>
+            </div>
+            <div id="autoCycleOutput" class="output-box">No automatic cycle started yet.</div>
         </section>
 
         <section class="panel log-panel">
