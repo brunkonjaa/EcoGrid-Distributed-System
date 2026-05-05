@@ -56,12 +56,18 @@ Each service is mapped to a specific RPC type:
 - GUI client shows a compact dashboard with readable service summaries, technical response details, expandable Occupancy stream updates, and Control decisions for heating, comfort-range maintain state, and cooling
 - GUI Auto Cycle calls Temperature, runs Occupancy, combines the latest readings, and sends them to Control automatically
 - Auto Cycle includes a Live Demo Cycle plus Heating, Comfort, Cooling, and Empty Room demo scenarios so the final demo can show all main Control Service decision paths clearly
+- GUI now includes simple operator access using a demo token before service invocation
+- gRPC calls from the GUI server include metadata for operator ID, request ID, authorization token, and SDG goal
+- Temperature, Occupancy, and Control services validate incoming gRPC metadata and reject unauthorized requests
+- GUI server and services now handle invalid input, unknown service discovery, unavailable services, and invalid gRPC requests with clear error messages
+- gRPC deadlines/timeouts are applied to remote calls so the GUI does not wait indefinitely
+- Occupancy streaming includes a cancellation demo that stops the server stream after two updates
 - Proto files defined for all services:
   - `temperature.proto`
   - `occupancy.proto`
   - `control.proto`
   - `registry.proto`
-- Remaining work includes stronger error handling, advanced gRPC features, final report, and final video
+- Remaining work includes final screenshots, final report, and final video
 
 ---
 
@@ -127,6 +133,35 @@ Open the GUI in a browser:
 ```text
 http://localhost:3000
 ```
+
+For local testing, the optional helper script can start the Registry, services, and GUI in the correct order:
+
+```bash
+python dev-tools/run_all_services.py
+```
+
+The helper also clears the EcoGrid ports before startup if old service processes are still running.
+
+The GUI uses this demo access token:
+
+```text
+1234
+```
+
+Unlock the controller with an operator name and token before running discovery or service calls.
+
+### Error handling and advanced gRPC checks
+
+The current implementation demonstrates:
+
+- invalid GUI/API input handling
+- unknown service discovery handling
+- unavailable remote service handling
+- invalid gRPC request handling
+- unauthorized/missing operator token handling
+- gRPC metadata for operator, request, authorization, and SDG context
+- gRPC deadlines/timeouts on remote service calls
+- Occupancy stream cancellation from the GUI
 
 ---
 

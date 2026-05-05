@@ -13,6 +13,16 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const temperatureProto = grpc.loadPackageDefinition(packageDefinition).temperature;
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
+
+function createMetadata() {
+    const metadata = new grpc.Metadata();
+    metadata.set('operator-id', 'terminal-client');
+    metadata.set('authorization', `Bearer ${ACCESS_TOKEN}`);
+    metadata.set('request-id', `cli-${Date.now()}`);
+    metadata.set('sdg-goal', 'SDG7');
+    return metadata;
+}
 
 async function main() {
     try {
@@ -22,7 +32,7 @@ async function main() {
             grpc.credentials.createInsecure()
         );
 
-        client.GetTemperature({ area: "Room A" }, (error, response) => {
+        client.GetTemperature({ area: "Room A" }, createMetadata(), (error, response) => {
             if (error) {
                 console.error("Error:", error);
             } else {

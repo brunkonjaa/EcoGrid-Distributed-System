@@ -13,6 +13,16 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const occupancyProto = grpc.loadPackageDefinition(packageDefinition).occupancy;
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
+
+function createMetadata() {
+    const metadata = new grpc.Metadata();
+    metadata.set('operator-id', 'terminal-client');
+    metadata.set('authorization', `Bearer ${ACCESS_TOKEN}`);
+    metadata.set('request-id', `cli-${Date.now()}`);
+    metadata.set('sdg-goal', 'SDG7');
+    return metadata;
+}
 
 async function main() {
     try {
@@ -23,7 +33,7 @@ async function main() {
         );
 
         console.log('Discovered endpoint:', `${discoveredService.host}:${discoveredService.port}`);
-        const call = client.SubscribeOccupancy({ area: 'Room A' });
+        const call = client.SubscribeOccupancy({ area: 'Room A' }, createMetadata());
 
         call.on('data', (response) => {
             console.log('Occupancy Update:', response);

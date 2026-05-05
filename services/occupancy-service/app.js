@@ -10,6 +10,7 @@ const SERVICE_INFO = {
     rpc_package: 'occupancy'
 };
 const HEARTBEAT_INTERVAL_MS = 10000;
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -23,9 +24,53 @@ const occupancyProto = grpc.loadPackageDefinition(packageDefinition).occupancy;
 let registrySession = null;
 let heartbeatTimer = null;
 
+function getMetadataValue(call, key) {
+    const values = call.metadata.get(key);
+    return values.length > 0 ? String(values[0]) : '';
+}
+
+function validateAuthorization(call) {
+    if (getMetadataValue(call, 'authorization') !== `Bearer ${ACCESS_TOKEN}`) {
+        return {
+            code: grpc.status.UNAUTHENTICATED,
+            message: 'Occupancy Service rejected the request: invalid operator token'
+        };
+    }
+
+    return null;
+}
+
+function validateArea(area) {
+    const cleanArea = String(area || '').trim();
+
+    if (!cleanArea) {
+        return {
+            code: grpc.status.INVALID_ARGUMENT,
+            message: 'Occupancy Service requires an area value'
+        };
+    }
+
+    return null;
+}
+
 // Server Streaming RPC
 function SubscribeOccupancy(call) {
-    const area = call.request.area;
+    const authError = validateAuthorization(call);
+    if (authError) {
+        call.destroy(authError);
+        return;
+    }
+
+    const areaError = validateArea(call.request.area);
+    if (areaError) {
+        call.destroy(areaError);
+        return;
+    }
+
+    const area = call.request.area.trim();
+    console.log(
+        `Occupancy stream ${getMetadataValue(call, 'request-id') || 'no-request-id'} from ${getMetadataValue(call, 'operator-id') || 'unknown-operator'}`
+    );
 
     let count = 0;
 
@@ -49,6 +94,11 @@ function SubscribeOccupancy(call) {
         }
 
     }, 2000);
+
+    call.on('cancelled', () => {
+        clearInterval(interval);
+        console.log(`Occupancy stream for ${area} cancelled by client`);
+    });
 }
 
 async function registerWithRegistry() {

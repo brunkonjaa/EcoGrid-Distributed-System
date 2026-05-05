@@ -10,6 +10,7 @@ const SERVICE_INFO = {
     rpc_package: 'control'
 };
 const HEARTBEAT_INTERVAL_MS = 10000;
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -23,15 +24,105 @@ const controlProto = grpc.loadPackageDefinition(packageDefinition).control;
 let registrySession = null;
 let heartbeatTimer = null;
 
+function getMetadataValue(call, key) {
+    const values = call.metadata.get(key);
+    return values.length > 0 ? String(values[0]) : '';
+}
+
+function validateAuthorization(call) {
+    if (getMetadataValue(call, 'authorization') !== `Bearer ${ACCESS_TOKEN}`) {
+        return {
+            code: grpc.status.UNAUTHENTICATED,
+            message: 'Control Service rejected the request: invalid operator token'
+        };
+    }
+
+    return null;
+}
+
+function validateReading(request) {
+    const area = String(request.area || '').trim();
+    const temperature = Number(request.temperature_value);
+    const peopleCount = Number(request.people_count);
+
+    if (!area) {
+        return 'Control Service requires an area value';
+    }
+
+    if (!Number.isFinite(temperature) || temperature < -50 || temperature > 80) {
+        return 'Control Service requires a temperature between -50 and 80';
+    }
+
+    if (!Number.isInteger(peopleCount) || peopleCount < 0 || peopleCount > 500) {
+        return 'Control Service requires people_count between 0 and 500';
+    }
+
+    if (!request.occupied && peopleCount > 0) {
+        return 'Control Service received inconsistent occupancy: empty room cannot have people_count above 0';
+    }
+
+    if (request.occupied && peopleCount === 0) {
+        return 'Control Service received inconsistent occupancy: occupied room needs people_count above 0';
+    }
+
+    return '';
+}
+
 // Client Streaming RPC
 function SendSensorData(call, callback) {
     let latestData = null;
+    let validationError = validateAuthorization(call);
+    let hasResponded = false;
+
+    if (validationError) {
+        hasResponded = true;
+        callback(validationError);
+        return;
+    }
+
+    console.log(
+        `Control stream ${getMetadataValue(call, 'request-id') || 'no-request-id'} from ${getMetadataValue(call, 'operator-id') || 'unknown-operator'}`
+    );
 
     call.on('data', (request) => {
+        if (validationError) {
+            return;
+        }
+
+        const requestError = validateReading(request);
+        if (requestError) {
+            validationError = {
+                code: grpc.status.INVALID_ARGUMENT,
+                message: requestError
+            };
+            hasResponded = true;
+            callback(validationError);
+            return;
+        }
+
         latestData = request;
     });
 
     call.on('end', () => {
+        if (hasResponded) {
+            return;
+        }
+
+        if (validationError) {
+            hasResponded = true;
+            callback(validationError);
+            return;
+        }
+
+        if (!latestData) {
+            hasResponded = true;
+            callback({
+                code: grpc.status.INVALID_ARGUMENT,
+                message: 'Control Service requires at least one sensor reading'
+            });
+            return;
+        }
+
         let action = "REDUCE_ENERGY_USAGE";
         let reason = "Room empty";
 
@@ -52,6 +143,7 @@ function SendSensorData(call, callback) {
             reason: reason
         };
 
+        hasResponded = true;
         callback(null, response);
     });
 

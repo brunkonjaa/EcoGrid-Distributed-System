@@ -112,6 +112,7 @@ h2 {
 }
 
 .discovery-panel,
+.access-panel,
 .log-panel {
     grid-column: 1 / -1;
 }
@@ -249,6 +250,18 @@ select:focus {
     grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
 }
 
+.access-form {
+    align-items: end;
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
+}
+
+.button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
 button {
     min-height: 42px;
     padding: 10px 15px;
@@ -275,6 +288,10 @@ button:disabled {
 button.secondary {
     background: #e7efec;
     color: var(--primary-dark);
+}
+
+.compact-output {
+    min-height: 78px;
 }
 
 .output-box {
@@ -438,6 +455,11 @@ button.secondary {
 
     .result-row,
     .stream-list li {
+        grid-template-columns: 1fr;
+    }
+
+    .access-form,
+    .auto-cycle-form {
         grid-template-columns: 1fr;
     }
 

@@ -1,22 +1,30 @@
 const serviceGrid = document.querySelector('#serviceGrid');
 const activityLog = document.querySelector('#activityLog');
+const operatorStatus = document.querySelector('#operatorStatus');
 
 const buttons = {
+    access: document.querySelector('#accessBtn'),
+    lock: document.querySelector('#lockBtn'),
     discoverAll: document.querySelector('#discoverAllBtn'),
+    unknownService: document.querySelector('#unknownServiceBtn'),
     temperature: document.querySelector('#temperatureBtn'),
     occupancy: document.querySelector('#occupancyBtn'),
+    cancelOccupancy: document.querySelector('#cancelOccupancyBtn'),
     control: document.querySelector('#controlBtn'),
     autoCycle: document.querySelector('#autoCycleBtn'),
     clearLog: document.querySelector('#clearLogBtn')
 };
 
 const outputs = {
+    access: document.querySelector('#accessOutput'),
     temperature: document.querySelector('#temperatureOutput'),
     occupancy: document.querySelector('#occupancyOutput'),
     control: document.querySelector('#controlOutput'),
     autoCycle: document.querySelector('#autoCycleOutput')
 };
 
+const operatorNameInput = document.querySelector('#operatorName');
+const accessTokenInput = document.querySelector('#accessToken');
 const controlPeopleInput = document.querySelector('#controlPeople');
 const controlOccupancyStatus = document.querySelector('#controlOccupancyStatus');
 const roomSelects = document.querySelectorAll('.room-select');
@@ -27,6 +35,7 @@ const autoCycleActions = [
     'REDUCE_ENERGY_USAGE'
 ];
 const liveCycleShownActions = new Set();
+let operatorSession = null;
 
 function formatJson(value) {
     return JSON.stringify(value, null, 2);
@@ -71,6 +80,15 @@ function renderError(target, message) {
     `;
 }
 
+function renderAccess(message, isError = false) {
+    outputs.access.innerHTML = `
+        <div class="result-summary ${isError ? 'error-summary' : ''}">
+            <span class="result-label">${isError ? 'Access denied' : 'Access status'}</span>
+            <strong>${escapeHtml(message)}</strong>
+        </div>
+    `;
+}
+
 function resultRow(label, value) {
     return `
         <div class="result-row">
@@ -93,9 +111,13 @@ function addLog(message, isError = false) {
 }
 
 async function apiRequest(url, options = {}) {
+    const requestId = `gui-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const response = await fetch(url, {
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Operator-Name': operatorSession?.operatorName || '',
+            'X-Access-Token': operatorSession?.accessToken || '',
+            'X-Request-Id': requestId
         },
         ...options
     });
@@ -107,6 +129,49 @@ async function apiRequest(url, options = {}) {
     }
 
     return data;
+}
+
+function requireUnlocked(target) {
+    if (operatorSession) {
+        return true;
+    }
+
+    const message = 'Unlock operator access before invoking services.';
+    if (target) {
+        renderError(target, message);
+    }
+    addLog(message, true);
+    return false;
+}
+
+function setControllerLocked(isLocked) {
+    [
+        buttons.discoverAll,
+        buttons.unknownService,
+        buttons.temperature,
+        buttons.occupancy,
+        buttons.cancelOccupancy,
+        buttons.control,
+        buttons.autoCycle
+    ].forEach((button) => {
+        button.disabled = isLocked;
+    });
+
+    operatorStatus.textContent = isLocked
+        ? 'Operator Access Required'
+        : `Operator: ${operatorSession.operatorName}`;
+}
+
+function validateAreaInput(selector, target) {
+    const area = document.querySelector(selector).value.trim();
+
+    if (!area) {
+        renderError(target, 'Area is required.');
+        addLog('Validation failed: area is required.', true);
+        return null;
+    }
+
+    return area;
 }
 
 function setButtonLoading(button, loadingText) {
@@ -149,7 +214,7 @@ function getLiveCycleProgressText() {
 }
 
 function getAreaValue(selector) {
-    return document.querySelector(selector).value.trim() || 'Room A';
+    return document.querySelector(selector).value.trim();
 }
 
 function handleRoomSelection(event) {
@@ -214,6 +279,10 @@ function renderServices(services) {
 }
 
 async function discoverAllServices() {
+    if (!requireUnlocked()) {
+        return;
+    }
+
     const stopLoading = setButtonLoading(buttons.discoverAll, 'Discovering...');
 
     try {
@@ -228,9 +297,40 @@ async function discoverAllServices() {
     }
 }
 
+async function testUnknownService() {
+    if (!requireUnlocked()) {
+        return;
+    }
+
+    const stopLoading = setButtonLoading(buttons.unknownService, 'Testing...');
+
+    try {
+        await apiRequest('/api/registry?service=lighting-service');
+        addLog('Unexpected result: lighting-service was discovered.', true);
+    } catch (error) {
+        addLog(`Unknown service handled correctly: ${error.message}`, true);
+        renderServices([{
+            service_name: 'lighting-service',
+            status: 'UNAVAILABLE',
+            error: error.message
+        }]);
+    } finally {
+        stopLoading();
+    }
+}
+
 async function runTemperature() {
+    if (!requireUnlocked(outputs.temperature)) {
+        return;
+    }
+
     const stopLoading = setButtonLoading(buttons.temperature, 'Calling...');
-    const area = getAreaValue('#temperatureArea');
+    const area = validateAreaInput('#temperatureArea', outputs.temperature);
+
+    if (!area) {
+        stopLoading();
+        return;
+    }
 
     try {
         const data = await apiRequest('/api/temperature', {
@@ -256,8 +356,18 @@ async function runTemperature() {
 }
 
 async function runOccupancy() {
+    if (!requireUnlocked(outputs.occupancy)) {
+        return;
+    }
+
     const stopLoading = setButtonLoading(buttons.occupancy, 'Streaming...');
-    const area = getAreaValue('#occupancyArea');
+    const area = validateAreaInput('#occupancyArea', outputs.occupancy);
+
+    if (!area) {
+        stopLoading();
+        return;
+    }
+
     outputs.occupancy.innerHTML = '<div class="waiting-state">Waiting for stream updates...</div>';
 
     try {
@@ -290,10 +400,13 @@ async function runOccupancy() {
             ${resultRow('Area', latestUpdate.area || area)}
             ${resultRow('Latest status', latestUpdate.occupied ? 'Occupied' : 'Empty')}
             ${resultRow('Endpoint', data.endpoint)}
+            ${data.cancelled ? resultRow('Stream status', data.message || 'Cancelled') : ''}
             <ul class="stream-list">${renderUpdateRows(visibleUpdates)}</ul>
             ${hiddenUpdateDetails}
         `, data);
-        addLog(`Occupancy stream returned ${data.updates.length} updates through ${data.endpoint}.`);
+        addLog(data.cancelled
+            ? `Occupancy stream cancellation demo stopped after ${data.updates.length} updates.`
+            : `Occupancy stream returned ${data.updates.length} updates through ${data.endpoint}.`);
     } catch (error) {
         renderError(outputs.occupancy, error.message);
         addLog(`Occupancy stream failed: ${error.message}`, true);
@@ -302,11 +415,76 @@ async function runOccupancy() {
     }
 }
 
+async function runOccupancyCancellationDemo() {
+    if (!requireUnlocked(outputs.occupancy)) {
+        return;
+    }
+
+    const stopLoading = setButtonLoading(buttons.cancelOccupancy, 'Cancelling...');
+    const area = validateAreaInput('#occupancyArea', outputs.occupancy);
+
+    if (!area) {
+        stopLoading();
+        return;
+    }
+
+    outputs.occupancy.innerHTML = '<div class="waiting-state">Starting stream cancellation demo...</div>';
+
+    try {
+        const data = await apiRequest('/api/occupancy', {
+            method: 'POST',
+            body: JSON.stringify({
+                area,
+                cancel_after_updates: 2
+            })
+        });
+        const latestUpdate = data.updates[data.updates.length - 1] || {};
+
+        renderOutput(outputs.occupancy, `
+            <span class="result-label">Stream cancellation demo</span>
+            <div class="primary-reading">Cancelled after ${escapeHtml(data.updates.length)} updates</div>
+            ${resultRow('Area', latestUpdate.area || area)}
+            ${resultRow('Endpoint', data.endpoint)}
+            ${resultRow('Status', data.message || 'Cancelled by operator')}
+        `, data);
+        addLog(`Occupancy stream cancelled by operator after ${data.updates.length} updates.`);
+    } catch (error) {
+        renderError(outputs.occupancy, error.message);
+        addLog(`Occupancy cancellation demo failed: ${error.message}`, true);
+    } finally {
+        stopLoading();
+    }
+}
+
 async function runControl() {
+    if (!requireUnlocked(outputs.control)) {
+        return;
+    }
+
     const stopLoading = setButtonLoading(buttons.control, 'Sending...');
-    const area = getAreaValue('#controlArea');
-    const temperatureValue = Number(document.querySelector('#controlTemperature').value || 0);
-    const peopleCount = Number(controlPeopleInput.value || 0);
+    const area = validateAreaInput('#controlArea', outputs.control);
+    const temperatureValue = Number(document.querySelector('#controlTemperature').value);
+    const peopleCount = Number(controlPeopleInput.value);
+
+    if (!area) {
+        stopLoading();
+        return;
+    }
+
+    if (!Number.isFinite(temperatureValue) || temperatureValue < -50 || temperatureValue > 80) {
+        renderError(outputs.control, 'Temperature must be a number between -50 and 80.');
+        addLog('Validation failed: control temperature is invalid.', true);
+        stopLoading();
+        return;
+    }
+
+    if (!Number.isInteger(peopleCount) || peopleCount < 0 || peopleCount > 500) {
+        renderError(outputs.control, 'People count must be a whole number between 0 and 500.');
+        addLog('Validation failed: people count is invalid.', true);
+        stopLoading();
+        return;
+    }
+
     const occupied = peopleCount > 0;
 
     const readings = [
@@ -355,8 +533,18 @@ async function runControl() {
 }
 
 async function runAutoCycle() {
+    if (!requireUnlocked(outputs.autoCycle)) {
+        return;
+    }
+
     const stopLoading = setButtonLoading(buttons.autoCycle, 'Running...');
-    const area = getAreaValue('#autoCycleArea');
+    const area = validateAreaInput('#autoCycleArea', outputs.autoCycle);
+
+    if (!area) {
+        stopLoading();
+        return;
+    }
+
     const scenario = document.querySelector('#autoCycleScenario').value;
     const targetAction = scenario === 'live' ? getLiveCycleTargetAction() : null;
     outputs.autoCycle.innerHTML = '<div class="waiting-state">Running automatic Temperature, Occupancy, and Control cycle...</div>';
@@ -400,9 +588,51 @@ async function runAutoCycle() {
     }
 }
 
+async function unlockController() {
+    const stopLoading = setButtonLoading(buttons.access, 'Checking...');
+    const operatorName = operatorNameInput.value.trim();
+    const accessToken = accessTokenInput.value.trim();
+
+    try {
+        const data = await apiRequest('/api/access', {
+            method: 'POST',
+            body: JSON.stringify({
+                operator_name: operatorName,
+                access_token: accessToken
+            })
+        });
+
+        operatorSession = {
+            operatorName: data.operator_name,
+            accessToken: data.access_token
+        };
+        setControllerLocked(false);
+        renderAccess(data.message);
+        addLog(`${data.operator_name} unlocked EcoGrid controller access.`);
+    } catch (error) {
+        operatorSession = null;
+        setControllerLocked(true);
+        renderAccess(error.message, true);
+        addLog(`Operator access failed: ${error.message}`, true);
+    } finally {
+        stopLoading();
+    }
+}
+
+function lockController() {
+    operatorSession = null;
+    setControllerLocked(true);
+    renderAccess('Controller locked. Unlock before invoking smart services.');
+    addLog('EcoGrid controller locked.');
+}
+
+buttons.access.addEventListener('click', unlockController);
+buttons.lock.addEventListener('click', lockController);
 buttons.discoverAll.addEventListener('click', discoverAllServices);
+buttons.unknownService.addEventListener('click', testUnknownService);
 buttons.temperature.addEventListener('click', runTemperature);
 buttons.occupancy.addEventListener('click', runOccupancy);
+buttons.cancelOccupancy.addEventListener('click', runOccupancyCancellationDemo);
 buttons.control.addEventListener('click', runControl);
 buttons.autoCycle.addEventListener('click', runAutoCycle);
 roomSelects.forEach((select) => {
@@ -414,4 +644,5 @@ buttons.clearLog.addEventListener('click', () => {
 });
 
 updateControlOccupancyStatus();
-addLog('EcoGrid GUI loaded. Start registry and services, then discover services.');
+setControllerLocked(true);
+addLog('EcoGrid GUI loaded. Unlock operator access, then discover services.');

@@ -15,7 +15,7 @@
 - gui/
   - Browser GUI evidence for service discovery, service invocation, and Auto Cycle
 - errors/
-  - Error handling, validation, and advanced gRPC evidence to be added later
+  - Error handling, validation, operator access, metadata, deadlines, and stream cancellation evidence
 
 ## Purpose
 
@@ -47,4 +47,14 @@ Each screenshot provides proof of:
   - `44_gui_empty_room_demo.png` - Auto Cycle Empty Room Demo returning `REDUCE_ENERGY_USAGE`
   - `45_gui_activity_log.png` - Activity Log showing discovery and Auto Cycle demo results
   - `46_gui_room_selection.png` - room selection dropdown with predefined rooms and `Edit_Name`
-- Discovery, error handling, advanced gRPC features, and final demo evidence are still to be expanded before final submission.
+  - `55_gui_auto_cycle_heating_success.png` - Auto Cycle Heating Demo still working after error handling and advanced features were added
+- Error handling and advanced gRPC evidence includes:
+  - `47_gui_operator_access_locked.png` - GUI locked before operator access
+  - `48_gui_invalid_access_token.png` - invalid token rejected
+  - `49_gui_operator_access_granted.png` - operator access granted with demo token
+  - `50_gui_unknown_service_discovery.png` - unknown `lighting-service` discovery handled
+  - `51_gui_invalid_input_validation.png` - invalid Control temperature validation
+  - `52_gui_unavailable_temperature_service.png` - unavailable Temperature Service handled
+  - `53_gui_occupancy_stream_cancelled.png` - Occupancy stream cancelled after two updates
+  - `54_gui_authorized_metadata_temperature.png` - authorized Temperature call after operator access
+  - `56_gui_error_handling_activity_log.png` - Activity Log summary of error handling and advanced feature events

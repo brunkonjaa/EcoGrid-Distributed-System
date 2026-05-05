@@ -16,6 +16,10 @@
   - service runs on port `50051`
   - service registers as `temperature-service`
   - client discovers `temperature-service` through the registry before calling it
+- Error handling and advanced features:
+  - rejects missing area values with `INVALID_ARGUMENT`
+  - rejects missing or invalid operator metadata with `UNAUTHENTICATED`
+  - GUI server calls this RPC with metadata and a deadline
 
 ---
 
@@ -39,6 +43,11 @@
   - service runs on port `50052`
   - service registers as `occupancy-service`
   - client discovers `occupancy-service` through the registry before calling it
+- Error handling and advanced features:
+  - rejects missing area values with `INVALID_ARGUMENT`
+  - rejects missing or invalid operator metadata with `UNAUTHENTICATED`
+  - GUI server calls this RPC with metadata and a longer streaming deadline
+  - GUI cancellation demo cancels the stream after two updates
 
 ---
 
@@ -65,6 +74,12 @@
   - service runs on port `50053`
   - service registers as `control-service`
   - client discovers `control-service` through the registry before calling it
+- Error handling and advanced features:
+  - rejects missing area values with `INVALID_ARGUMENT`
+  - rejects temperatures outside `-50 C` to `80 C`
+  - rejects invalid or inconsistent occupancy values
+  - rejects missing or invalid operator metadata with `UNAUTHENTICATED`
+  - GUI server calls this RPC with metadata and a deadline
 
 ---
 
@@ -85,6 +100,28 @@
   - `Empty Room Demo` sends an unoccupied reading to demonstrate `REDUCE_ENERGY_USAGE`
 - Purpose: demonstrates the smart environment acting automatically rather than only through separate manual service calls
 - Evidence: captured manually from the GUI after the Auto Cycle button completes
+
+---
+
+## Operator Access, Metadata, Deadlines, And Errors
+- GUI/API route: `POST /api/access`
+- Demo token: `1234` unless `ECOGRID_ACCESS_TOKEN` is set
+- Metadata sent with protected gRPC calls:
+  - `operator-id`
+  - `authorization`
+  - `request-id`
+  - `sdg-goal`
+- Deadlines:
+  - normal service calls use a short deadline
+  - Occupancy streaming uses a longer deadline
+- Error cases demonstrated:
+  - invalid GUI/API input
+  - unknown service discovery, such as `lighting-service`
+  - unavailable remote services
+  - invalid gRPC request messages
+  - missing or invalid operator token
+- Stream cancellation:
+  - the GUI can cancel an Occupancy stream after two updates for evidence of cancellation handling
 
 ---
 

@@ -7,6 +7,9 @@ const { discoverService, createRegistrySession } = require('./registryClient');
 
 const PORT = Number(process.env.GUI_PORT || 3000);
 const GUI_DIR = path.join(__dirname, 'gui');
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
+const DEFAULT_DEADLINE_MS = 3000;
+const OCCUPANCY_DEADLINE_MS = 12000;
 
 const PROTO_OPTIONS = {
     keepCase: true,
@@ -61,10 +64,11 @@ function sendJson(response, statusCode, payload) {
     response.end(JSON.stringify(payload));
 }
 
-function sendError(response, statusCode, message) {
+function sendError(response, statusCode, message, details = {}) {
     sendJson(response, statusCode, {
         ok: false,
-        error: message
+        error: message,
+        ...details
     });
 }
 
@@ -101,8 +105,129 @@ function createClient(ServiceType, serviceInfo) {
 }
 
 function serviceError(error) {
-    error.statusCode = 502;
+    if (error.code === grpc.status.DEADLINE_EXCEEDED) {
+        error.statusCode = 504;
+        error.message = 'Remote service deadline exceeded. The service did not respond in time.';
+    } else if (error.code === grpc.status.UNAVAILABLE) {
+        error.statusCode = 503;
+        error.message = 'Remote service is unavailable. Start the service and try again.';
+    } else if (error.code === grpc.status.UNAUTHENTICATED) {
+        error.statusCode = 401;
+    } else if (error.code === grpc.status.INVALID_ARGUMENT) {
+        error.statusCode = 400;
+    } else {
+        error.statusCode = 502;
+    }
     return error;
+}
+
+function cleanText(value) {
+    return String(value || '').trim();
+}
+
+function validateArea(area) {
+    const cleanArea = cleanText(area);
+
+    if (!cleanArea) {
+        const error = new Error('Area is required.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (cleanArea.length > 60) {
+        const error = new Error('Area must be 60 characters or fewer.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return cleanArea;
+}
+
+function validateServiceName(serviceName) {
+    const cleanServiceName = cleanText(serviceName);
+
+    if (!cleanServiceName) {
+        const error = new Error('Service name is required for discovery.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (!/^[a-z-]+$/.test(cleanServiceName)) {
+        const error = new Error('Service name can only contain lowercase letters and hyphens.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return cleanServiceName;
+}
+
+function validateNumber(value, label, min, max) {
+    const numberValue = Number(value);
+
+    if (!Number.isFinite(numberValue)) {
+        const error = new Error(`${label} must be a valid number.`);
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (numberValue < min || numberValue > max) {
+        const error = new Error(`${label} must be between ${min} and ${max}.`);
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return numberValue;
+}
+
+function validateAccessRequest(body) {
+    const operatorName = cleanText(body.operator_name);
+    const accessToken = cleanText(body.access_token);
+
+    if (!operatorName) {
+        const error = new Error('Operator name is required.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (accessToken !== ACCESS_TOKEN) {
+        const error = new Error('Unauthorized operator access. Check the access token.');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    return operatorName;
+}
+
+function requireOperator(request) {
+    const operatorName = cleanText(request.headers['x-operator-name']);
+    const accessToken = cleanText(request.headers['x-access-token']);
+
+    if (!operatorName || accessToken !== ACCESS_TOKEN) {
+        const error = new Error('Unauthorized request. Operator access is required.');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    return {
+        operatorName,
+        accessToken,
+        requestId: cleanText(request.headers['x-request-id']) || `req-${Date.now()}`
+    };
+}
+
+function createGrpcMetadata(operatorContext) {
+    const metadata = new grpc.Metadata();
+    metadata.set('operator-id', operatorContext.operatorName);
+    metadata.set('authorization', `Bearer ${operatorContext.accessToken}`);
+    metadata.set('request-id', operatorContext.requestId);
+    metadata.set('sdg-goal', 'SDG7');
+    return metadata;
+}
+
+function createGrpcOptions(deadlineMs = DEFAULT_DEADLINE_MS) {
+    return {
+        deadline: new Date(Date.now() + deadlineMs)
+    };
 }
 
 function randomTemperature(min, max) {
@@ -149,12 +274,13 @@ function createControlReadingForAction(action, area) {
     };
 }
 
-async function callTemperature(area) {
+async function callTemperature(area, operatorContext) {
     const service = await discoverService('temperature-service');
     const client = createClient(temperatureProto.TemperatureService, service);
+    const metadata = createGrpcMetadata(operatorContext);
 
     return new Promise((resolve, reject) => {
-        client.GetTemperature({ area }, (error, data) => {
+        client.GetTemperature({ area }, metadata, createGrpcOptions(), (error, data) => {
             if (error) {
                 reject(serviceError(error));
                 return;
@@ -168,41 +294,65 @@ async function callTemperature(area) {
     });
 }
 
-async function callOccupancy(area) {
+async function callOccupancy(area, operatorContext, options = {}) {
     const service = await discoverService('occupancy-service');
     const client = createClient(occupancyProto.OccupancyService, service);
+    const metadata = createGrpcMetadata(operatorContext);
+    const cancelAfterUpdates = Number(options.cancelAfterUpdates || 0);
 
     return new Promise((resolve, reject) => {
-        const stream = client.SubscribeOccupancy({ area });
+        const stream = client.SubscribeOccupancy(
+            { area },
+            metadata,
+            createGrpcOptions(OCCUPANCY_DEADLINE_MS)
+        );
         const updates = [];
-        let completed = false;
+        let settled = false;
 
         stream.on('data', (data) => {
             updates.push(data);
+
+            if (cancelAfterUpdates > 0 && updates.length >= cancelAfterUpdates && !settled) {
+                settled = true;
+                stream.cancel();
+                resolve({
+                    endpoint: `${service.host}:${service.port}`,
+                    updates,
+                    cancelled: true,
+                    message: `Occupancy stream cancelled after ${updates.length} updates`
+                });
+            }
         });
 
         stream.on('end', () => {
-            completed = true;
+            if (settled) {
+                return;
+            }
+
+            settled = true;
             resolve({
                 endpoint: `${service.host}:${service.port}`,
-                updates
+                updates,
+                cancelled: false
             });
         });
 
         stream.on('error', (error) => {
-            if (!completed) {
+            if (!settled) {
+                settled = true;
                 reject(serviceError(error));
             }
         });
     });
 }
 
-async function callControl(readings) {
+async function callControl(readings, operatorContext) {
     const service = await discoverService('control-service');
     const client = createClient(controlProto.ControlService, service);
+    const metadata = createGrpcMetadata(operatorContext);
 
     return new Promise((resolve, reject) => {
-        const call = client.SendSensorData((error, data) => {
+        const call = client.SendSensorData(metadata, createGrpcOptions(), (error, data) => {
             if (error) {
                 reject(serviceError(error));
                 return;
@@ -260,7 +410,7 @@ async function handleRegistry(request, response) {
     const serviceName = url.searchParams.get('service') || '';
 
     if (serviceName) {
-        const service = await discoverService(serviceName);
+        const service = await discoverService(validateServiceName(serviceName));
         sendJson(response, 200, {
             ok: true,
             service
@@ -292,53 +442,68 @@ async function handleRegistrySnapshot(response) {
 }
 
 async function handleTemperature(request, response) {
+    const operatorContext = requireOperator(request);
     const body = await readRequestBody(request);
-    const area = body.area || 'Room A';
-    const temperature = await callTemperature(area);
+    const area = validateArea(body.area);
+    const temperature = await callTemperature(area, operatorContext);
 
     sendJson(response, 200, {
         ok: true,
+        request_id: operatorContext.requestId,
         ...temperature
     });
 }
 
 async function handleOccupancy(request, response) {
+    const operatorContext = requireOperator(request);
     const body = await readRequestBody(request);
-    const area = body.area || 'Room A';
-    const occupancy = await callOccupancy(area);
+    const area = validateArea(body.area);
+    const occupancy = await callOccupancy(area, operatorContext, {
+        cancelAfterUpdates: Number(body.cancel_after_updates || 0)
+    });
 
     sendJson(response, 200, {
         ok: true,
+        request_id: operatorContext.requestId,
         ...occupancy
     });
 }
 
 async function handleControl(request, response) {
+    const operatorContext = requireOperator(request);
     const body = await readRequestBody(request);
     const readings = Array.isArray(body.readings) && body.readings.length > 0
         ? body.readings
         : [{
-            area: body.area || 'Room A',
-            temperature_value: Number(body.temperature_value || 24),
+            area: body.area,
+            temperature_value: body.temperature_value,
             occupied: Boolean(body.occupied),
-            people_count: Number(body.people_count || 0)
+            people_count: body.people_count
         }];
-    const control = await callControl(readings);
+    const validatedReadings = readings.map((reading) => ({
+        area: validateArea(reading.area),
+        temperature_value: validateNumber(reading.temperature_value, 'Temperature', -50, 80),
+        occupied: Boolean(reading.occupied),
+        people_count: validateNumber(reading.people_count, 'People count', 0, 500)
+    }));
+    const control = await callControl(validatedReadings, operatorContext);
 
     sendJson(response, 200, {
         ok: true,
+        request_id: operatorContext.requestId,
         ...control
     });
 }
 
 async function handleAutoCycle(request, response) {
+    const operatorContext = requireOperator(request);
     const body = await readRequestBody(request);
-    const area = body.area || 'Room A';
+    const area = validateArea(body.area);
     const scenarioKey = AUTO_CYCLE_SCENARIOS[body.scenario] ? body.scenario : 'live';
     const scenario = AUTO_CYCLE_SCENARIOS[scenarioKey];
     const requestedAction = CONTROL_ACTIONS.includes(body.target_action) ? body.target_action : null;
-    const temperature = await callTemperature(area);
-    const occupancy = await callOccupancy(area);
+    const temperature = await callTemperature(area, operatorContext);
+    const occupancy = await callOccupancy(area, operatorContext);
     const latestOccupancy = occupancy.updates[occupancy.updates.length - 1] || {
         area,
         occupied: false,
@@ -362,10 +527,11 @@ async function handleAutoCycle(request, response) {
         },
         controlReading
     ];
-    const control = await callControl(controlReadings);
+    const control = await callControl(controlReadings, operatorContext);
 
     sendJson(response, 200, {
         ok: true,
+        request_id: operatorContext.requestId,
         area,
         scenario: {
             key: scenarioKey,
@@ -378,6 +544,18 @@ async function handleAutoCycle(request, response) {
         combined_reading: combinedReading,
         control_reading: controlReading,
         control
+    });
+}
+
+async function handleAccess(request, response) {
+    const body = await readRequestBody(request);
+    const operatorName = validateAccessRequest(body);
+
+    sendJson(response, 200, {
+        ok: true,
+        operator_name: operatorName,
+        access_token: ACCESS_TOKEN,
+        message: `Operator access granted for ${operatorName}`
     });
 }
 
@@ -415,6 +593,11 @@ function serveStatic(request, response) {
 
 async function handleApiRequest(request, response) {
     try {
+        if (request.method === 'POST' && request.url === '/api/access') {
+            await handleAccess(request, response);
+            return;
+        }
+
         if (request.method === 'GET' && request.url.startsWith('/api/registry/snapshot')) {
             await handleRegistrySnapshot(response);
             return;

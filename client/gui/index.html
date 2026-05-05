@@ -15,18 +15,44 @@
         </div>
         <div class="header-status">
             <span class="status-dot"></span>
-            Registry Discovery Enabled
+            <span id="operatorStatus">Operator Access Required</span>
         </div>
     </header>
 
     <main class="dashboard">
+        <section class="panel access-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Access Control</p>
+                    <h2>Operator Access</h2>
+                </div>
+                <span class="rpc-badge">Metadata Token</span>
+            </div>
+            <div class="form-grid access-form">
+                <label>
+                    Operator Name
+                    <input id="operatorName" type="text" value="Bruno" maxlength="60">
+                </label>
+                <label>
+                    Access Token
+                    <input id="accessToken" type="password" value="1234">
+                </label>
+                <button id="accessBtn">Unlock Controller</button>
+                <button id="lockBtn" class="secondary">Lock</button>
+            </div>
+            <div id="accessOutput" class="output-box compact-output">Controller locked. Unlock before invoking smart services.</div>
+        </section>
+
         <section class="panel discovery-panel">
             <div class="panel-heading">
                 <div>
                     <p class="section-kicker">Naming Service</p>
                     <h2>Service Discovery</h2>
                 </div>
-                <button id="discoverAllBtn">Discover Services</button>
+                <div class="button-row">
+                    <button id="discoverAllBtn">Discover Services</button>
+                    <button id="unknownServiceBtn" class="secondary">Test Unknown Service</button>
+                </div>
             </div>
             <div id="serviceGrid" class="service-grid">
                 <article class="service-tile muted">
@@ -87,7 +113,10 @@
                 <option value="Server Room">Server Room</option>
                 <option value="Edit_Name">Edit_Name</option>
             </select>
-            <button id="occupancyBtn">Run Occupancy Stream</button>
+            <div class="button-row">
+                <button id="occupancyBtn">Run Occupancy Stream</button>
+                <button id="cancelOccupancyBtn" class="secondary">Cancel Demo</button>
+            </div>
             <div id="occupancyOutput" class="output-box">No occupancy stream started yet.</div>
         </section>
 

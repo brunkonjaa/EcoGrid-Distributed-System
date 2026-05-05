@@ -9,3 +9,11 @@
 | GUI Server | 3000 | N/A |
 
 The Registry Service should be started before the other services. Temperature, Occupancy, and Control register themselves with the registry and send heartbeat messages after startup. The GUI Server should be started after the backend services so the browser client can discover and call them.
+
+The GUI server protects service invocation with a simple demo operator token. The default token is:
+
+```text
+1234
+```
+
+This can be changed for local testing with the `ECOGRID_ACCESS_TOKEN` environment variable. The GUI server sends the validated operator details to the gRPC services as metadata.

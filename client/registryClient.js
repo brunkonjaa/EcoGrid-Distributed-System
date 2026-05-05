@@ -117,7 +117,9 @@ async function discoverService(serviceName, address = DEFAULT_REGISTRY_ADDRESS) 
         ) || response.service;
 
         if (!discoveredService || !discoveredService.host || !discoveredService.port) {
-            throw new Error(`Service not found in registry: ${serviceName}`);
+            const error = new Error(`Service not found in registry: ${serviceName}`);
+            error.statusCode = 404;
+            throw error;
         }
 
         return discoveredService;

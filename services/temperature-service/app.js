@@ -10,6 +10,7 @@ const SERVICE_INFO = {
     rpc_package: 'temperature'
 };
 const HEARTBEAT_INTERVAL_MS = 10000;
+const ACCESS_TOKEN = process.env.ECOGRID_ACCESS_TOKEN || '1234';
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -22,9 +23,53 @@ const temperatureProto = grpc.loadPackageDefinition(packageDefinition).temperatu
 let registrySession = null;
 let heartbeatTimer = null;
 
+function getMetadataValue(call, key) {
+    const values = call.metadata.get(key);
+    return values.length > 0 ? String(values[0]) : '';
+}
+
+function validateAuthorization(call) {
+    if (getMetadataValue(call, 'authorization') !== `Bearer ${ACCESS_TOKEN}`) {
+        return {
+            code: grpc.status.UNAUTHENTICATED,
+            message: 'Temperature Service rejected the request: invalid operator token'
+        };
+    }
+
+    return null;
+}
+
+function validateArea(area) {
+    const cleanArea = String(area || '').trim();
+
+    if (!cleanArea) {
+        return {
+            code: grpc.status.INVALID_ARGUMENT,
+            message: 'Temperature Service requires an area value'
+        };
+    }
+
+    return null;
+}
+
 // Unary RPC implementation
 function GetTemperature(call, callback) {
-    const area = call.request.area;
+    const authError = validateAuthorization(call);
+    if (authError) {
+        callback(authError);
+        return;
+    }
+
+    const areaError = validateArea(call.request.area);
+    if (areaError) {
+        callback(areaError);
+        return;
+    }
+
+    const area = call.request.area.trim();
+    console.log(
+        `Temperature request ${getMetadataValue(call, 'request-id') || 'no-request-id'} from ${getMetadataValue(call, 'operator-id') || 'unknown-operator'}`
+    );
 
     const response = {
         area: area,
