@@ -10,12 +10,12 @@
   - Dependency installation and service implementation code
 - testing/
   - Unary, Server Streaming, Client Streaming, and Registry service execution
-- discovery/
-  - Service registration, heartbeat, and discovery evidence
 - gui/
   - Browser GUI evidence for service discovery, service invocation, and Auto Cycle
 - errors/
   - Error handling, validation, operator access, metadata, deadlines, and stream cancellation evidence
+- github/
+  - GitHub repository and commit history evidence
 
 ## Purpose
 
@@ -32,6 +32,9 @@ Each screenshot provides proof of:
 - Testing screenshots show the main service and client outputs.
 - GUI screenshots show the browser controller discovering and calling the services.
 - Auto Cycle screenshots should show the manual browser evidence for the automatic Temperature, Occupancy, and Control workflow.
+- GitHub screenshots show the repository and meaningful commit history.
+- Current testing evidence includes:
+  - `60_control_client_reduce_energy_usage.png` - Control client output showing `REDUCE_ENERGY_USAGE` for an unoccupied room
 - Current GUI evidence includes:
   - `33_gui_discovery.png` - first GUI discovery evidence
   - `34_gui_services.png` - first GUI service invocation evidence
@@ -58,3 +61,8 @@ Each screenshot provides proof of:
   - `53_gui_occupancy_stream_cancelled.png` - Occupancy stream cancelled after two updates
   - `54_gui_authorized_metadata_temperature.png` - authorized Temperature call after operator access
   - `56_gui_error_handling_activity_log.png` - Activity Log summary of error handling and advanced feature events
+- GitHub evidence includes:
+  - `57_github_commit_history.png` - GitHub commit history evidence
+  - `58_github_commits_final.png` - later GUI and Auto Cycle commits
+  - `59_github_commits_core.png` - core service implementation commits
+  - `61_github_commit_history_after_error_handling.png` - latest error handling and advanced gRPC checkpoint commit

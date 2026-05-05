@@ -67,7 +67,7 @@ Each service is mapped to a specific RPC type:
   - `occupancy.proto`
   - `control.proto`
   - `registry.proto`
-- Remaining work includes final screenshots, final report, and final video
+- Final submission work includes the report document and video presentation
 
 ---
 

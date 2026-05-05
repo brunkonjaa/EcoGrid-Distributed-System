@@ -16,4 +16,3 @@ The GUI server protects service invocation with a simple demo operator token. Th
 1234
 ```
 
-This can be changed for local testing with the `ECOGRID_ACCESS_TOKEN` environment variable. The GUI server sends the validated operator details to the gRPC services as metadata.
